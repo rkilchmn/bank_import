@@ -23,10 +23,17 @@ include_once($path_to_root . "/includes/data_checks.inc");
 
 
 $js = "";
-if ($use_popup_windows)
-    $js .= get_js_open_window(900, 500);
-if ($use_date_picker)
-    $js .= get_js_date_picker();
+//RK replace with new logic
+// if ($use_popup_windows)
+// 	$js .= get_js_open_window(900, 500);
+// if ($use_date_picker)
+// 		$js .= get_js_date_picker();
+
+if ($SysPrefs->use_popup_windows)
+	$js .= get_js_open_window(800, 500);
+if (user_use_date_picker())
+	$js .= get_js_date_picker();
+
 page(_($help_context = "View Bank Statements"), @$_GET['popup'], false, "", $js);
 
 //--------------------------------------------------------------------
@@ -36,6 +43,33 @@ if(get_post('RefreshInquiry')) {
 	$Ajax->activate('doc_tbl');
 }
 
+if (isset($_POST['delete'])) {
+    foreach (array_keys($_POST['delete']) as $k) {
+        $smt_id = $k;
+		$v = $_POST['delete'][$smt_id];
+        if ($v = "delete") {
+            // check if no processed transactions
+            $sql = " SELECT
+            (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id and status <> 0) as numProc
+            FROM
+            ".TB_PREF."bi_statements smt WHERE id=".$smt_id;
+
+            $res=db_query($sql, 'unable to get transactions data');
+            $myrow = db_fetch($res);
+            if ($myrow['numProc'] == 0) {
+                // delete all transactions and statement
+                $sql = "DELETE FROM ".TB_PREF."bi_transactions WHERE smt_id=".$smt_id;
+                $res=db_query($sql, 'unable to delete transactions data');
+
+                $sql = "DELETE FROM ".TB_PREF."bi_statements WHERE id=".$smt_id;
+                $res=db_query($sql, 'unable to delete statement data');
+
+                // refresh page
+                $Ajax->activate('doc_tbl');
+            }     
+        }
+    }
+}
 
 start_form();
 
@@ -59,16 +93,18 @@ end_table();
 
 //------------------------------------------------------------------------------------------------
 // this is data display table
-$sql = " SELECT bank, account, currency, startBalance, endBalance, smtDate, number, seq, statementId
+$sql = " SELECT id, bank, account, currency, startBalance, endBalance, smtDate, number, seq, statementId,
+    (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id) as numTrans,
+    (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id and status <> 0) as numProc
 	FROM
-	".TB_PREF."bi_statements WHERE smtDate >= ".db_escape(date2sql($_POST['TransAfterDate']))." AND smtDate <= ".
+	".TB_PREF."bi_statements smt WHERE smtDate >= ".db_escape(date2sql($_POST['TransAfterDate']))." AND smtDate <= ".
 	db_escape(date2sql($_POST['TransToDate']))." ORDER BY smtDate ASC";
 
 $res=db_query($sql, 'unable to get transactions data');
 
 div_start('doc_tbl');
 start_table(TABLESTYLE, "width='100%'");
-table_header(array("Bank", "Statement#", "Date", "Account(Currency)", "Start Balance", "End Balance", "Delta"));
+table_header(array("Bank", "Statement#", "Date", "Account(Currency)", "Start Balance", "End Balance", "Delta", "Transactions", "Processed", "Allow Delete"));
 while($myrow = db_fetch($res)) {
     start_row();
     echo "<td>". $myrow['bank'] . "</td>";
@@ -78,7 +114,13 @@ while($myrow = db_fetch($res)) {
     amount_cell($myrow['startBalance']);
     amount_cell($myrow['endBalance']);
     amount_cell($myrow['endBalance'] - $myrow['startBalance']);
-    
+    echo "<td>" . $myrow['numTrans'] . "</td>";
+    echo "<td>" . $myrow['numProc'] . "</td>";
+    echo "<td>";
+    if ($myrow['numProc'] == 0) {
+         echo submit("delete[".$myrow['id']."]", _("Delete"), false, '', 'default');
+    }
+    echo"</td>";
     end_row();
 }
 end_table();

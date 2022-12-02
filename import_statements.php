@@ -76,35 +76,37 @@ function importStatement($smt) {
 
 	    $smt_id = db_insert_id();
 	    $message .= "new, imported";
+
+		foreach($smt->transactions as $id => $t) {
+			$sql = "INSERT IGNORE INTO ".TB_PREF."bi_transactions(smt_id, valueTimestamp, entryTimestamp, account, accountName, transactionType, ".
+			"transactionCode, transactionCodeDesc, transactionDC, transactionAmount, transactionTitle) VALUES(" .
+			db_escape($smt_id).", ".
+			db_escape($t->valueTimestamp).", ".
+			db_escape($t->entryTimestamp).", ".
+			db_escape($t->account).",".
+			db_escape($t->accountName).", ".
+			db_escape($t->transactionType).", ".
+			db_escape($t->transactionCode).", ".
+			db_escape($t->transactionCodeDesc).", ".
+			db_escape($t->transactionDC).", ".
+			db_escape($t->transactionAmount).", ".
+			db_escape($t->transactionTitle).")";
+	
+			$res = db_query($sql, "could not insert transaction");
+			
+			//$t_id = db_insert_id();
+			//$message .= "    processed transaction #$id, $t_id\n";
+		}
+		$message .= ' ' . count($smt->transactions) . ' transactions';
 	} else {
 	    //update
-	    $smt_id = $myrow['smtId'];
-	    $sql = "UPDATE ".TB_PREF."bi_statements SET startBalance=".db_escape($smt->startBalance).", endBalance=".db_escape($smt->endBalance)." WHERE statementId=".db_escape($smt_id);
-	    $res = db_query($sql, "could not insert statement");
-	    $message .= "existing, updated";
+	    //RK $smt_id = $myrow['smtId'];
+		// $smt_id = $myrow['id'];
+	    // $sql = "UPDATE ".TB_PREF."bi_statements SET startBalance=".db_escape($smt->startBalance).", endBalance=".db_escape($smt->endBalance)." WHERE statementId=".db_escape($smt_id);
+	    // $res = db_query($sql, "could not insert statement");
+	    $message .= "existing, aborted";
 	}
-
-	foreach($smt->transactions as $id => $t) {
-	    $sql = "INSERT IGNORE INTO ".TB_PREF."bi_transactions(smt_id, valueTimestamp, entryTimestamp, account, accountName, transactionType, ".
-	    "transactionCode, transactionCodeDesc, transactionDC, transactionAmount, transactionTitle) VALUES(" .
-	    db_escape($smt_id).", ".
-	    db_escape($t->valueTimestamp).", ".
-	    db_escape($t->entryTimestamp).", ".
-	    db_escape($t->account).",".
-	    db_escape($t->accountName).", ".
-	    db_escape($t->transactionType).", ".
-	    db_escape($t->transactionCode).", ".
-	    db_escape($t->transactionCodeDesc).", ".
-	    db_escape($t->transactionDC).", ".
-	    db_escape($t->transactionAmount).", ".
-	    db_escape($t->transactionTitle).")";
-
-	    $res = db_query($sql, "could not insert transaction");
-	    
-	    //$t_id = db_insert_id();
-	    //$message .= "    processed transaction #$id, $t_id\n";
-	}
-	$message .= ' ' . count($smt->transactions) . ' transactions';
+	
 	return $message;
 }
 
@@ -123,7 +125,8 @@ function do_upload_form() {
     table_header($th);
 
     label_row(_("Format:"), array_selector('parser', null, $parsers, array('select_submit' => true)));
-    foreach($_parsers[$_POST['parser']]['select'] as $param => $label) {
+    //RK foreach($_parsers[$_POST['parser']]['select'] as $param => $label) {
+	foreach($_parsers[$_POST['parser']] as $param => $label) {
 	switch($param) {
 	    case 'bank_account':
 		bank_accounts_list_row($label, 'bank_account', $selected_id=null, $submit_on_change=false);
@@ -158,7 +161,8 @@ function parse_uploaded_files() {
     //prepare static data for parser
     $static_data = array();
     $_parsers = getParsers();
-    foreach($_parsers[$_POST['parser']]['select'] as $param => $label) {
+    //RK foreach($_parsers[$_POST['parser']]['select'] as $param => $label) {
+	foreach($_parsers[$_POST['parser']] as $param => $label) {
 	switch($param) {
 	    case 'bank_account':
 		//get bank account data
