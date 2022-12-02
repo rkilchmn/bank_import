@@ -1,0 +1,8 @@
+﻿0:bank[varchar(6)], 1:account[varchar(24)], 2:currency[varchar(4)], 3:startBalance[double], 4:endBalance[double], 5:smtDate[date], 6:number[int(11)], 7:seq[int(11)], 8:statementId[varchar(32)]
+BNY,9999999999,USD,0.00,1515.00,2012-05-10,2012,005,2012-05-10-2012-005
+0:valueTimestamp[date],1:entryTimestamp[date],2:account[varchar(24)],3:accountName[varchar(60)],4:transactionCode[varchar(32)],5:transactionCodeDesc[varchar(32)],6:transactionDC[varchar(2)],7:transactionAmount[double],8:transactionTitle[varchar(256)],9:transactionChargeAmount[double],10:transactionChargeTitle[varchar(256)]
+2012-05-02,2012-05-02,11111111,Account 1,TXN0001,Quick Entry:Cash Sale,C,100.00,Sample Quick Entry Cash Sale,1.00,Charge for Sample Quick Entry Cash Sale
+2012-05-04,2012-05-03,22222222,Account 2,TXN0002,Quick Entry:Maintenance,D,200.00,Sample Quick Entry Maintenance,2.00,Charge for Sample Quick Entry Maintenance
+2012-05-06,2012-05-07,33333333,Account 3,,Customer:Ghostbuster,C,300.00,Sample Customer Payment,3.00,Charge for Sample Customer Payment
+2012-05-08,2012-05-08,44444444,Account 4,TXN0004,Supplier:Lucky Luke,D,400.00,Sample Supplier Payment,4.00,Charge Sample Supplier Payment
+2012-05-10,2012-05-10,55555555,Account 5,,Manual Settlement,C,500.00,Sample Manual Settlement,5.00,Charge for Sample Manual Settlement
