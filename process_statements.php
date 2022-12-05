@@ -487,15 +487,15 @@ if (1) {
 				else
 					$_POST['partnerType'][$tid] = 'SP';
 
-				// RK
+				// RK preset from transactionCodeDesc
 				if (isset( $transactionCodeDesc) && ($transactionCodeDesc == "Manual Settlement")) {
 					$_POST['partnerType'][$tid] = 'MA';
 				}
 				elseif (isset( $transactionCodeDesc) && strpos( $transactionCodeDesc, ":" )) {
 					list( $partnerType, $value ) = explode(':', $transactionCodeDesc); 
 					switch ($partnerType) {
-						case 'Quick Entry':
-							$_POST['partnerType'][$tid] = "QE";
+						case 'QE':
+							$_POST['partnerType'][$tid] = 'QE';
 
 							// lookup quick entries
 							$qe = get_quick_entries((($transactionDC == 'C') ? QE_DEPOSIT : QE_PAYMENT));
@@ -508,7 +508,7 @@ if (1) {
 									break;
 								}
 							}
-						case 'Customer':
+							break;
 					}
 				}
 			}
