@@ -488,7 +488,7 @@ if (1) {
 					$_POST['partnerType'][$tid] = 'SP';
 
 				// RK preset from transactionCodeDesc
-				if (isset( $transactionCodeDesc) && ($transactionCodeDesc == "Manual Settlement")) {
+				if (isset( $transactionCodeDesc) && ($transactionCodeDesc == 'MA')) {
 					$_POST['partnerType'][$tid] = 'MA';
 				}
 				elseif (isset( $transactionCodeDesc) && strpos( $transactionCodeDesc, ":" )) {
@@ -504,7 +504,7 @@ if (1) {
 							// find a matching quick entry
 							foreach ($results as $row) {
 								if ($row[2] == $value) {
-									$_POST["partnerId_$tid"] = $row[1];
+									$_POST["partnerId_$tid"] = $row[0];
 									break;
 								}
 							}
