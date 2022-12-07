@@ -7,7 +7,8 @@ The aim of this module is to be able import and process bank statements into Fro
 
 Based on original bank import module
 
-Improvements
+IMPROVEMENTS
+------------
 1. Bulk Processing
 2. Prepopulation of processing e.g. define Quick Entry type
 3. For processed transactions show links to journals/transactions
