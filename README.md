@@ -13,7 +13,8 @@ IMPROVEMENTS
 2. Prepopulation of processing e.g. define Quick Entry type
 3. For processed transactions show links to journals/transactions
 4. use/store reference instead trans_no to link to FA postings, since reference remains unchanged even if FA transaction is modified afterward
-5. Validate referene and date for manual settlment
+5. Validate referene and date for manual settlement
+6. Parser for "native" CSV format which is orientated on data base structure and easy to understand
 
 INSTALLATION
 ------------
