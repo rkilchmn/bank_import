@@ -12,7 +12,7 @@ IMPROVEMENTS
 1. Bulk Processing
 2. Prepopulation of processing e.g. define Quick Entry type
 3. For processed transactions show links to journals/transactions
-4. use/store reference instead trans_no to link to FA postings, since reference remains unchanged even if FA transaction is modified afterward
+4. Use/store reference instead trans_no to link to FA postings, since reference remains unchanged even if FA transaction is modified afterward
 5. Validate reference and date for manual settlement
 6. Parser for "native" CSV format which is orientated on data base structure and easy to understand
 7. Automatic determination of historic exchange rates using currencybeacon.com API
