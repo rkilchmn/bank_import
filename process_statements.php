@@ -16,6 +16,9 @@ include_once($path_to_root . "/includes/data_checks.inc");
 include_once($path_to_root . "/modules/bank_import/includes/includes.inc");
 include_once($path_to_root . "/modules/bank_import/includes/pdata.inc");
 
+//RK edit links
+include_once($path_to_root . "/includes/ui/db_pager_view.inc");
+
 $ACTION_PROCESS_SINGLE = "Process Single";
 $ACTION_PROCESS_BULK = "Bulk Process Selected";
 $ACTION_PROCESS_SELECT_ALL = "Select All";
@@ -27,6 +30,18 @@ $js = "";
 // 	$js .= get_js_open_window(900, 500);
 // if ($use_date_picker)
 // 		$js .= get_js_date_picker();
+
+function retrieve_txn_by_reference( $type, $reference, $date) {
+	$sql = get_sql_for_journal_inquiry($type, $date, $date, $reference, '', true);
+			
+	$result = db_query($sql, 'unable to get transactions data');
+
+	if (db_num_rows($result) == 1) {
+		return db_fetch_assoc($result);
+	}
+	else
+		return null;
+}
 
 if ($SysPrefs->use_popup_windows)
 	$js .= get_js_open_window(800, 500);
@@ -56,214 +71,256 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 	if (isset($_POST['ProcessSingleTransaction'])) {
 		$processTransactions = $_POST['ProcessSingleTransaction'];
 	}
-	else {
+	elseif (isset($_POST['ProcessTransaction'])) {
 		$processTransactions = $_POST['ProcessTransaction'];
 	}
 
+	// fx rates 
+	$comp_currency = get_company_currency();
+
 	//RK list($k, $v) = each($_POST['ProcessTransaction']);
-	foreach (array_keys($processTransactions) as $k) {
-		$v = $processTransactions[$k];
-		//RK  if (isset($k) && isset($v) && isset($_POST['partnerType'][$k]) && $v) {
-		if (isset($k) && isset($v) && isset($_POST['partnerType'][$k]) && $v) {
-			//check params
-			$error = 0;
-			if (!isset($_POST["partnerId_$k"])) {
-				$Ajax->activate('doc_tbl');
-				display_error('missing partnerId');
-				$error = 1;
-			}
-
-			if (!$error) {
-				$tid = $k;
-				//time to gather data about transaction
-				//load $tid
-				$trz = get_transaction($tid);
-				//display_notification('<pre>'.print_r($trz,true).'</pre>');
-
-				//check bank account
-				$our_account = get_bank_account_by_number($trz['our_account']);
-				if (empty($our_account)) {
+	if (isset($processTransactions)) {
+		foreach (array_keys($processTransactions) as $k) {
+			$v = $processTransactions[$k];
+			//RK  if (isset($k) && isset($v) && isset($_POST['partnerType'][$k]) && $v) {
+			if (isset($k) && isset($v) && isset($_POST['partnerType'][$k]) && $v) {
+				//check params
+				$error = 0;
+				if (!isset($_POST["partnerId_$k"])) {
 					$Ajax->activate('doc_tbl');
-					display_error('the bank account <b>' . $trz['our_account'] . '</b> is not defined in Bank Accounts');
+					display_error('missing partnerId');
 					$error = 1;
 				}
-				//display_notification('<pre>'.print_r($ba,true).'</pre>');
-			}
-			if (!$error) {
-				//get charges
-				$chgs = array();
-				$_cids = array_filter(explode(',', $_POST['cids'][$tid]));
-				foreach ($_cids as $cid) {
-					$chgs[] = get_transaction($cid);
+
+				if (!$error) {
+					$tid = $k;
+					//time to gather data about transaction
+					//load $tid
+					$trz = get_transaction($tid);
+					//display_notification('<pre>'.print_r($trz,true).'</pre>');
+
+					//check bank account
+					$our_account = get_bank_account_by_number($trz['our_account']);
+					if (empty($our_account)) {
+						$Ajax->activate('doc_tbl');
+						display_error('the bank account <b>' . $trz['our_account'] . '</b> is not defined in Bank Accounts');
+						$error = 1;
+					}
+					//display_notification('<pre>'.print_r($ba,true).'</pre>');
 				}
-				//display_notification("tid=$tid, cids=`".$_POST['cids'][$tid]."`");
-				//display_notification("cids_array=".print_r($_cids,true));
+				if (!$error) {
+					//get charges
+					$chgs = array();
+					$_cids = array_filter(explode(',', $_POST['cids'][$tid]));
+					foreach ($_cids as $cid) {
+						$chgs[] = get_transaction($cid);
+					}
+					//display_notification("tid=$tid, cids=`".$_POST['cids'][$tid]."`");
+					//display_notification("cids_array=".print_r($_cids,true));
 
-				//now sum up
-				//now group data from tranzaction
-				$amount = $trz['transactionAmount'];
-				$charge = 0;
-				foreach ($chgs as $t) {
-					$charge += $t['transactionAmount'];
-				}
+					//now sum up
+					//now group data from tranzaction
+					$amount = $trz['transactionAmount'];
+					$charge = 0;
+					foreach ($chgs as $t) {
+						$charge += $t['transactionAmount'];
+					}
 
-				//display_notification("amount=$amount, charge=$charge");
-				//display_notification("partnerType=".$_POST['partnerType'][$k]);
+					//display_notification("amount=$amount, charge=$charge");
+					//display_notification("partnerType=".$_POST['partnerType'][$k]);
 
+					$rate = null;
+					$txn_currency = $our_account['bank_curr_code'];
+					if ($txn_currency != $comp_currency) {
+						$date = sql2date($trz['valueTimestamp']);
+						$rate = get_date_exchange_rate($txn_currency, $date);
+						if (!$rate) { // rate = 0 if unsuccessfull
+							$rate = retrieve_exrate($txn_currency, $date);
+							if ($rate) {
+								if ($SysPrefs->xr_provider_authoritative) {
+									// store rate
+									add_exchange_rate($txn_currency, $date, $rate, $rate);
+								}
+								else {
+									display_notification('Rate determined but not stored: to store rate set configuration in config.php to xr_provider_authoritative=true');
+								}
+							}	
+							
+						}
+					}
 
-				switch (true) {
-					case ($_POST['partnerType'][$k] == 'SP' && $trz['transactionDC'] == 'D'):
-						//supplier payment
-						//make sure we have a unique reference
-						//RK do {
-							$reference = $Refs->get_next(ST_SUPPAYMENT);
-						//RK } while (!is_new_reference($reference, ST_SUPPAYMENT));
+					switch (true) {
+						case ($_POST['partnerType'][$k] == 'SP' && $trz['transactionDC'] == 'D'):
+							//supplier payment
+							//make sure we have a unique reference
+							//RK do {
+							$transType = ST_SUPPAYMENT;
+							$reference = $Refs->get_next($transType);
+							if (!is_new_reference($reference, $transType)) {
+								display_error("Reference: $reference of Transaction Type: $transType already used.");
+								break;
+							}
 
-						//RK replaced obsolete function add_supp_payment
-						//  $payment_id = add_supp_payment(
-						// 	$_POST["partnerId_$k"],
-						// 	sql2date($trz['valueTimestamp']),
-						// 	$our_account['id'],
-						// 	user_numeric($trz['transactionAmount']),
-						// 	0,
-						// 	$reference,
-						// 	$trz['transactionTitle'],
-						// 	0,
-						// 	user_numeric($charge)
-						// );
+							//RK } while (!is_new_reference($reference, ST_SUPPAYMENT));
 
-						//RK with write_supp_payment( $trans_no, $supplier_id, $bank_account,$date_, $ref, $supp_amount, $supp_discount, $memo_, $bank_charge=0, $bank_amount=0, $dimension=0, $dimension2=0)
-						$payment_id = write_supp_payment(
-								0, // new transaction
-								$_POST["partnerId_$k"],
-								$our_account['id'],
-								sql2date($trz['valueTimestamp']),
+							//RK replaced obsolete function add_supp_payment
+							//  $payment_id = add_supp_payment(
+							// 	$_POST["partnerId_$k"],
+							// 	sql2date($trz['valueTimestamp']),
+							// 	$our_account['id'],
+							// 	user_numeric($trz['transactionAmount']),
+							// 	0,
+							// 	$reference,
+							// 	$trz['transactionTitle'],
+							// 	0,
+							// 	user_numeric($charge)
+							// );
+
+							//RK with write_supp_payment( $trans_no, $supplier_id, $bank_account,$date_, $ref, $supp_amount, $supp_discount, $memo_, $bank_charge=0, $bank_amount=0, $dimension=0, $dimension2=0)
+							$payment_id = write_supp_payment(
+									0, // new transaction
+									$_POST["partnerId_$k"],
+									$our_account['id'],
+									sql2date($trz['valueTimestamp']),
+									$reference,
+									user_numeric($trz['transactionAmount']),
+									0,
+									$trz['transactionTitle'],
+									user_numeric($charge),
+									user_numeric($trz['transactionAmount']) //RK required for FX transaction
+								);
+							
+							// display_notification("payment_id = $payment_id");
+							//update trans with payment_id details
+							//RK use reference which does not change when is modified (trans_id is changing and link brakes)
+							if ($payment_id) {
+								update_transactions($tid, $_cids, $status = 1, $reference, ST_SUPPAYMENT);
+								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_SUPPLIER, $partner_detail_id = ANY_NUMERIC, $account = $trz['account']);
+								// RK
+								// display_notification('Supplier payment processed');
+								$count['SP']++;
+							}
+							break;
+						case ($_POST['partnerType'][$k] == 'CU' && $trz['transactionDC'] == 'C'):
+							//function my_write_customer_payment($trans_no, $customer_id, $branch_id, $bank_account,
+							//	$date_, $ref, $amount, $discount, $memo_, $rate=0, $charge=0, $bank_amount=0)
+							//insert customer payment into database
+							//RK do {
+							$transType = ST_BANKDEPOSIT;
+							$reference = $Refs->get_next($transType);
+							if (!is_new_reference($reference, $transType)) {
+								display_error("Reference: $reference of Transaction Type: $transType already used.");
+								break;
+							}
+							//RK } while (!is_new_reference($reference, ST_BANKDEPOSIT));
+
+							$deposit_id = my_write_customer_payment(
+								$trans_no = 0,
+								$customer_id = $_POST["partnerId_$k"],
+								$branch_id = $_POST["partnerDetailId_$k"],
+								$bank_account = $our_account['id'],
+								$date_ = sql2date($trz['valueTimestamp']),
 								$reference,
 								user_numeric($trz['transactionAmount']),
-								0,
-								$trz['transactionTitle'],
+								$discount = 0,
+								$memo_ = $trz['transactionTitle'],
+								$rate = 0,
 								user_numeric($charge),
 								user_numeric($trz['transactionAmount']) //RK required for FX transaction
 							);
-						
-						// display_notification("payment_id = $payment_id");
-						//update trans with payment_id details
-						if ($payment_id) {
-							update_transactions($tid, $_cids, $status = 1, $payment_id, ST_SUPPAYMENT);
-							update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_SUPPLIER, $partner_detail_id = ANY_NUMERIC, $account = $trz['account']);
-							// RK
-							// display_notification('Supplier payment processed');
-							$count['SP']++;
-						}
-						break;
-					case ($_POST['partnerType'][$k] == 'CU' && $trz['transactionDC'] == 'C'):
-						//function my_write_customer_payment($trans_no, $customer_id, $branch_id, $bank_account,
-						//	$date_, $ref, $amount, $discount, $memo_, $rate=0, $charge=0, $bank_amount=0)
-						//insert customer payment into database
-						//RK do {
-							$reference = $Refs->get_next(ST_BANKDEPOSIT);
-						//RK } while (!is_new_reference($reference, ST_BANKDEPOSIT));
-
-						$deposit_id = my_write_customer_payment(
-							$trans_no = 0,
-							$customer_id = $_POST["partnerId_$k"],
-							$branch_id = $_POST["partnerDetailId_$k"],
-							$bank_account = $our_account['id'],
-							$date_ = sql2date($trz['valueTimestamp']),
-							$reference,
-							user_numeric($trz['transactionAmount']),
-							$discount = 0,
-							$memo_ = $trz['transactionTitle'],
-							$rate = 0,
-							user_numeric($charge),
-							user_numeric($trz['transactionAmount']) //RK required for FX transaction
-						);
-						//display_notification("payment_id = $payment_id");
-						//update trans with payment_id details
-						if ($deposit_id) {
-							update_transactions($tid, $_cids, $status = 1, $deposit_id, ST_BANKDEPOSIT);
-							update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_CUSTOMER, $partner_detail_id = $_POST["partnerDetailId_$k"], $account = $trz['account']);
-							//RK display_notification('Customer deposit processed');
-							$count['CU']++;
-						}
-						break;
-					case ($_POST['partnerType'][$k] == 'QE'):
-						$cart_type = ($trz['transactionDC'] == 'D') ? ST_BANKPAYMENT : ST_BANKDEPOSIT;
-						$cart = new items_cart($cart_type);
-						$cart->order_id = 0;
-						$cart->original_amount = $trz['transactionAmount'] + $charge;
-
-						//RK do {
-							$cart->reference = $Refs->get_next($cart->trans_type);
-						//RK } while (!is_new_reference($cart->reference, $cart->trans_type));
-
-						$cart->tran_date = sql2date($trz['valueTimestamp']);
-						if (!is_date_in_fiscalyear($cart->tran_date)) {
-							$cart->tran_date = end_fiscalyear();
-						}
-						//this loads the QE into cart!!!
-						//RK $rval = display_quick_entries($cart, $_POST['qeId'][$k], $_POST['amount'][$k], ($_POST['transDC'][$k]=='C') ? QE_DEPOSIT : QE_PAYMENT);
-						$rval = qe_to_cart($cart, $_POST["partnerId_$k"], $trz['transactionAmount'], ($trz['transactionDC'] == 'C') ? QE_DEPOSIT : QE_PAYMENT, $trz['transactionTitle']);
-						$total = $cart->gl_items_total();
-						if ($total != 0) {
-							//need to add the charge to the cart
-							$cart->add_gl_item(get_company_pref('bank_charge_act'), 0, 0, $charge, 'Charge: ' . $trz['transactionTitle']);
-							//process the transaction
-
-							begin_transaction();
-
-							$trans = write_bank_transaction(
-								$cart->trans_type,
-								$cart->order_id,
-								$our_account['id'],
-								$cart,
-								sql2date($trz['valueTimestamp']),
-								PT_QUICKENTRY,
-								$_POST["partnerId_$k"],
-								0,
-								$cart->reference,
-								$trz['transactionTitle'],
-								true,
-								null
-							);
-
-							update_transactions($tid, $_cids, $status = 1, $trans[1], $cart_type);
-							commit_transaction();
-							//RK display_notification("Transaction processed via Quick Entry");
-							$count['QE']++;
-						} else {
-							display_notification("QE not loaded: rval=$rval, k=$k, total=$total");
-							//display_notification("debug: <pre>".print_r($_POST, true).'</pre>');
-						}
-						break;
-					case ($_POST['partnerType'][$k] == 'MA'):
-						//RK display_notification("tid=$tid, cids=`" . $_POST['cids'][$tid] . "`");
-						//RK display_notification("cids_array=" . print_r($_cids, true));
-						$transType = $_POST["transType"][$k];
-						$transNo = $_POST["transNo"][$k];
-						if (isset( $transType) && isset( $transNo)) {
-							// check if transaction exists
-							// $sql = get_sql_for_journal_inquiry( $transType, sql2date($trz['valueTimestamp']), sql2date($trz['valueTimestamp']), '', '', true, null);
-							// $result = db_query($sql, "Cannot retreive transaction");
-							// $myrow = db_fetch($result);
-							if (true) { 
-								update_transactions($tid, $_cids, $status = 1, $transNo, $transType);
-								//RK display_notification("Transaction was manually settled");
-								$count['MA']++;
-							} 
-							else {
-								display_notification('Invalid Type or Reference for Manual Transaction');
+							//display_notification("payment_id = $payment_id");
+							//update trans with payment_id details
+							if ($deposit_id) {
+								update_transactions($tid, $_cids, $status = 1, $reference, ST_BANKDEPOSIT);
+								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_CUSTOMER, $partner_detail_id = $_POST["partnerDetailId_$k"], $account = $trz['account']);
+								//RK display_notification('Customer deposit processed');
+								$count['CU']++;
 							}
-						}
-						else {
-							display_notification('Type or Reference for Manual Transaction missing');
-						}
-						break;
-				} // end of switch
-				$Ajax->activate('doc_tbl');
-			} //end of if !error
-		} // end of is set....
-	} //RK foreach 
+							break;
+						case ($_POST['partnerType'][$k] == 'QE'):
+							$cart_type = ($trz['transactionDC'] == 'D') ? ST_BANKPAYMENT : ST_BANKDEPOSIT;
+							$cart = new items_cart($cart_type);
+							$cart->order_id = 0;
+							$cart->original_amount = $trz['transactionAmount'] + $charge;
+
+							//RK do {
+							$cart->reference = $Refs->get_next($cart->trans_type);
+							if (!is_new_reference($cart->reference, $cart->trans_type)) {
+								display_error("Reference: $cart->reference of Transaction Type: $cart->trans_type already used.");
+								break;
+							}
+														
+							//RK } while (!is_new_reference($cart->reference, $cart->trans_type));
+
+							$cart->tran_date = sql2date($trz['valueTimestamp']);
+							if (!is_date_in_fiscalyear($cart->tran_date)) {
+								$cart->tran_date = end_fiscalyear();
+							}
+							//this loads the QE into cart!!!
+							//RK $rval = display_quick_entries($cart, $_POST['qeId'][$k], $_POST['amount'][$k], ($_POST['transDC'][$k]=='C') ? QE_DEPOSIT : QE_PAYMENT);
+							$rval = qe_to_cart($cart, $_POST["partnerId_$k"], $trz['transactionAmount'], ($trz['transactionDC'] == 'C') ? QE_DEPOSIT : QE_PAYMENT, $trz['transactionTitle']);
+							$total = $cart->gl_items_total();
+							if ($total != 0) {
+								//need to add the charge to the cart
+								$cart->add_gl_item(get_company_pref('bank_charge_act'), 0, 0, $charge, 'Charge: ' . $trz['transactionTitle']);
+								//process the transaction
+
+								begin_transaction();
+
+								$trans = write_bank_transaction(
+									$cart->trans_type,
+									$cart->order_id,
+									$our_account['id'],
+									$cart,
+									sql2date($trz['valueTimestamp']),
+									PT_QUICKENTRY,
+									$_POST["partnerId_$k"],
+									0,
+									$cart->reference,
+									$trz['transactionTitle'],
+									true,
+									null
+								);
+
+								update_transactions($tid, $_cids, $status = 1, $cart->reference, $cart_type);
+								commit_transaction();
+								//RK display_notification("Transaction processed via Quick Entry");
+								$count['QE']++;
+							} else {
+								display_notification("QE not loaded: rval=$rval, k=$k, total=$total");
+								//display_notification("debug: <pre>".print_r($_POST, true).'</pre>');
+							}
+							break;
+						case ($_POST['partnerType'][$k] == 'MA'):
+							//RK display_notification("tid=$tid, cids=`" . $_POST['cids'][$tid] . "`");
+							//RK display_notification("cids_array=" . print_r($_cids, true));
+							$transType = $_POST["transType"][$k];
+							$transRef = $_POST["transRef"][$k];
+							$transDate = sql2date( $trz['valueTimestamp']);
+							if (isset( $transType) && isset( $transRef)) {
+								// check if transaction exists
+								$txn = retrieve_txn_by_reference($transType,$transRef,$transDate);
+								if (isset($txn) && ($transRef == $txn['reference'])) { 
+									update_transactions($tid, $_cids, $status = 1, $transRef, $transType);
+									$count['MA']++;
+								} 
+								else {
+									display_error("Invalid Type '$transType', reference '$transRef' or date '$transDate for Manual Transaction");
+								}
+							}
+							else {
+								display_notification('Type or Reference for Manual Transaction missing');
+							}
+							break;
+					} // end of switch
+					$Ajax->activate('doc_tbl');
+				} //end of if !error
+			} // end of is set....
+		} //RK foreach 
+	}
+	else {
+		display_notification( "No transactions selected for processing");
+	}
 	//RK show total transaction processed 
 	$total = $count['SP']+$count['CU']+$count['QE']+$count['MA'];
 	display_notification("Total transactions processed: $total (Supplier Payments: ".$count['SP'].", Customer Payments: ".$count['CU'].", Quick Entries: ".$count['QE'].", Manual Payments: ".$count['MA'].")");
@@ -389,7 +446,7 @@ if (1) {
 				$has_trz = 1;
 				$amount = $trz['transactionAmount'];
 				$fa_trz_type = $trz['fa_trans_type'];
-				$fa_trz_no = $trz['fa_trans_no'];
+				$fa_trz_ref = $trz['fa_trans_no']; //RK using reference instead no because it does nt change when txn is modified
 
 				// RK
 				$transactionCode = $trz['transactionCode'];
@@ -411,7 +468,7 @@ if (1) {
 					$tid = $trz['id']; // tid is from charge
 					$amount += $trz['transactionAmount'];
 					$fa_trz_type = $trz['fa_trans_type'];
-					$fa_trz_no = $trz['fa_trans_no'];
+					$fa_trz_ref = $trz['fa_trans_no']; //RK using reference instead no because it does nt change when txn is modified
 
 					// RK
 					$transactionCode = $trz['transactionCode'];
@@ -451,18 +508,32 @@ if (1) {
 		//now display stuff: forms and information
 
 			if ($status == 1) {
+			
+			// determine trans_no by reference (logic form journal_inquiry.php)
+			$txn = retrieve_txn_by_reference( $fa_trz_type, $fa_trz_ref,sql2date( $valueTimestamp));
+			if (isset($txn)){
+				$fa_trz_no = $txn['trans_no'];
+			}
+			else {
+				$fa_trz_no = $fa_trz_ref; // for backward compatibility
+				$fa_trz_ref = '-';
+			}
+	
 			// the transaction is settled, we can display full details
 			label_row("Status:", "<b>Transaction is settled!</b>", "width='25%' class='label'");
+			label_row("Type:", $systypes_array[$fa_trz_type] . " ($fa_trz_type)");
+			label_row("Reference/No:", $fa_trz_ref."/".get_trans_view_str($fa_trz_type, $fa_trz_no)." ".get_gl_view_str($fa_trz_type, $fa_trz_no).trans_editor_link($fa_trz_type, $fa_trz_no));
+			
+
 			switch ($trz['fa_trans_type']) {
 				case ST_SUPPAYMENT:
-					label_row("Operation:", "Payment");
+
 					// get supplier info
 
 					//label_row("Supplier:", $minfo['supplierName']);
 					//label_row("From bank account:", $minfo['coyBankAccountName']);
 					break;
 				case ST_BANKDEPOSIT:
-					label_row("Operation:", "Deposit");
 					//get customer info from transaction details
 					if (exists_customer_trans($fa_trz_type, $fa_trz_no)) {
 						$fa_trans = get_customer_trans($fa_trz_no, $fa_trz_type);
@@ -470,7 +541,6 @@ if (1) {
 					}
 					break;
 				case 0:
-					label_row("Operation:", "Manual settlement");
 					// for manual transactions
 					break;
 				default:
@@ -566,7 +636,7 @@ if (1) {
 					hidden("partnerId_$tid", 'manual'); 
 					journal_types_list_cells("Transaction Type:", "transType[$tid]");
 					//function text_input($name, $value=null, $size='', $max='', $title='', $params='')
-					label_row(_("Transaction No:"),  text_input( "transNo[$tid]"));
+					label_row(_("Transaction Reference:"),  text_input( "transRef[$tid]"));
 
 					break;
 			}
