@@ -527,7 +527,7 @@ if (1) {
 			// the transaction is settled, we can display full details
 			label_row("Status:", "<b>Transaction is settled!</b>", "width='25%' class='label'");
 			label_row("Type:", $systypes_array[$fa_trz_type] . " ($fa_trz_type)");
-			label_row("Reference/No:", $fa_trz_ref."/".get_trans_view_str($fa_trz_type, $fa_trz_no)." ".get_gl_view_str($fa_trz_type, $fa_trz_no).trans_editor_link($fa_trz_type, $fa_trz_no));
+			label_row("Reference (Trans. No):", $fa_trz_ref."(".get_trans_view_str($fa_trz_type, $fa_trz_no).") ".get_gl_view_str($fa_trz_type, $fa_trz_no).trans_editor_link($fa_trz_type, $fa_trz_no));
 			
 
 			switch ($trz['fa_trans_type']) {
