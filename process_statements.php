@@ -194,7 +194,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 							//update trans with payment_id details
 							//RK use reference which does not change when is modified (trans_id is changing and link brakes)
 							if ($payment_id) {
-								update_transactions($tid, $_cids, $status = 1, $reference, ST_SUPPAYMENT);
+								update_transactions($tid, $_cids, $status = 1, $payment_id, ST_SUPPAYMENT, $reference);
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_SUPPLIER, $partner_detail_id = ANY_NUMERIC, $account = $trz['account']);
 								// RK
 								// display_notification('Supplier payment processed');
@@ -231,7 +231,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 							//display_notification("payment_id = $payment_id");
 							//update trans with payment_id details
 							if ($deposit_id) {
-								update_transactions($tid, $_cids, $status = 1, $reference, ST_BANKDEPOSIT);
+								update_transactions($tid, $_cids, $status = 1, $deposit_id, ST_BANKDEPOSIT, $reference);
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_CUSTOMER, $partner_detail_id = $_POST["partnerDetailId_$k"], $account = $trz['account']);
 								//RK display_notification('Customer deposit processed');
 								$count['CU']++;
@@ -282,8 +282,10 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 									null
 								);
 
-								update_transactions($tid, $_cids, $status = 1, $cart->reference, $cart_type);
-								commit_transaction();
+								if ( $trans[1]) {
+									update_transactions($tid, $_cids, $status = 1, $trans[1], $cart_type, $cart->reference);
+									commit_transaction();
+								}
 								//RK display_notification("Transaction processed via Quick Entry");
 								$count['QE']++;
 							} else {
@@ -301,7 +303,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 								// check if transaction exists
 								$txn = retrieve_txn_by_reference($transType,$transRef,$transDate);
 								if (isset($txn) && ($transRef == $txn['reference'])) { 
-									update_transactions($tid, $_cids, $status = 1, $transRef, $transType);
+									update_transactions($tid, $_cids, $status = 1, $txn['trans_no'], $transType, $transRef);
 									$count['MA']++;
 								} 
 								else {
@@ -446,7 +448,8 @@ if (1) {
 				$has_trz = 1;
 				$amount = $trz['transactionAmount'];
 				$fa_trz_type = $trz['fa_trans_type'];
-				$fa_trz_ref = $trz['fa_trans_no']; //RK using reference instead no because it does nt change when txn is modified
+				$fa_trz_no = $trz['fa_trans_no'];
+				$fa_trz_ref = $trz['matchinfo']; //RK using matchinfo for FA reference
 
 				// RK
 				$transactionCode = $trz['transactionCode'];
@@ -468,7 +471,8 @@ if (1) {
 					$tid = $trz['id']; // tid is from charge
 					$amount += $trz['transactionAmount'];
 					$fa_trz_type = $trz['fa_trans_type'];
-					$fa_trz_ref = $trz['fa_trans_no']; //RK using reference instead no because it does nt change when txn is modified
+					$fa_trz_no = $trz['fa_trans_no'];
+					$fa_trz_ref = $trz['matchinfo']; //RK using matchinfo for FA reference
 
 					// RK
 					$transactionCode = $trz['transactionCode'];
@@ -510,13 +514,14 @@ if (1) {
 			if ($status == 1) {
 			
 			// determine trans_no by reference (logic form journal_inquiry.php)
-			$txn = retrieve_txn_by_reference( $fa_trz_type, $fa_trz_ref,sql2date( $valueTimestamp));
-			if (isset($txn)){
-				$fa_trz_no = $txn['trans_no'];
+			if (isset($fa_trz_ref) && $fa_trz_ref) {
+				$txn = retrieve_txn_by_reference( $fa_trz_type, $fa_trz_ref,sql2date( $valueTimestamp));
+				if (isset($txn) && ($fa_trz_ref == $txn['reference'])){
+					$fa_trz_no = $txn['trans_no'];
+				}
 			}
 			else {
-				$fa_trz_no = $fa_trz_ref; // for backward compatibility
-				$fa_trz_ref = '-';
+					$fa_trz_ref = '-';
 			}
 	
 			// the transaction is settled, we can display full details

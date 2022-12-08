@@ -10,7 +10,7 @@ function get_transaction($tid)
 	return db_fetch($result);
 }
 
-function update_transactions($tid, $cids, $status, $trans_no, $trans_type)
+function update_transactions($tid, $cids, $status, $trans_no, $trans_type, $matchinfo)
 {
 	$cids[] = $tid;
 	$cids = implode(',', $cids);
@@ -18,6 +18,7 @@ function update_transactions($tid, $cids, $status, $trans_no, $trans_type)
 	$sql = "
 	UPDATE " . TB_PREF . "bi_transactions
 	SET status=" . db_escape($status) . ",
+		matchinfo=" . db_escape($matchinfo) . ",
 	    fa_trans_no=" . db_escape($trans_no) . ",
 	    fa_trans_type=" . db_escape($trans_type) . "
 	    WHERE id in ($cids)";
