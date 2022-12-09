@@ -271,7 +271,9 @@ function qe_to_cart(&$cart, $id, $base, $type, $descr = '')
 			$base = get_gl_trans_from_to($begin, $cart->tran_date, $qe['base_desc']);
 		}
 
-		if ($descr != '') $qe['description'] .= ': ' . $descr;
+		//RK do not prefix QE name if there is a description given
+		//RK - its not doing it for the GL items hence not consistent
+		if ($descr != '') $qe['description'] = $descr;
 		$result = get_quick_entry_lines($id);
 		if (db_num_rows($result) == 0) {
 			display_error(_("No Quick Entry lines are defined."));

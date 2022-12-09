@@ -24,6 +24,9 @@ $ACTION_PROCESS_BULK = "Bulk Process Selected";
 $ACTION_PROCESS_SELECT_ALL = "Select All";
 $ACTION_PROCESS_DESELECT_ALL = "Un-select All";
 
+// prefix before memo for bank charges line 
+$PREFIX_CHARGES = "Total Charges: ";
+
 $js = "";
 //RK replace with new logic
 // if ($use_popup_windows)
@@ -122,8 +125,12 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 					//now group data from tranzaction
 					$amount = $trz['transactionAmount'];
 					$charge = 0;
+					$chargeTitle = $trz['transactionTitle']; //RK default from txn
 					foreach ($chgs as $t) {
 						$charge += $t['transactionAmount'];
+						if (isset($t['transactionTitle']) && $t['transactionTitle']) {
+							$chargeTitle = $t['transactionTitle']; // overwrite from charge txn
+						}
 					}
 
 					//display_notification("amount=$amount, charge=$charge");
@@ -262,7 +269,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 							$total = $cart->gl_items_total();
 							if ($total != 0) {
 								//need to add the charge to the cart
-								$cart->add_gl_item(get_company_pref('bank_charge_act'), 0, 0, $charge, 'Charge: ' . $trz['transactionTitle']);
+								$cart->add_gl_item(get_company_pref('bank_charge_act'), 0, 0, $charge, $PREFIX_CHARGES . $chargeTitle );
 								//process the transaction
 
 								begin_transaction();
