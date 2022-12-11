@@ -1,5 +1,20 @@
 <?php
 
+//RK define processing types - better term than Partner Type
+define( 'PRT_SUPPLIER', 'SP');
+define( 'PRT_CUSTOMER', 'CU');
+define( 'PRT_QUICK_ENTRY', 'QE');
+define( 'PRT_MANUAL_SETTLEMENT', 'MA');
+
+// Button actions
+define( 'ACTION_PROCESS_SINGLE', 'Process Single');
+define( 'ACTION_PROCESS_BULK', 'Bulk Process Selected');
+define( 'ACTION_PROCESS_SELECT_ALL', 'Select All');
+define( 'ACTION_PROCESS_DESELECT_ALL', 'Un-select All');
+
+// prefix before memo for bank charges line 
+define( 'PREFIX_CHARGES', 'Total Charges: ');
+
 $page_security = 'SA_SALESTRANSVIEW';
 $path_to_root = "../..";
 include_once($path_to_root . "/includes/date_functions.inc");
@@ -18,14 +33,6 @@ include_once($path_to_root . "/modules/bank_import/includes/pdata.inc");
 
 //RK edit links
 include_once($path_to_root . "/includes/ui/db_pager_view.inc");
-
-$ACTION_PROCESS_SINGLE = "Process Single";
-$ACTION_PROCESS_BULK = "Bulk Process Selected";
-$ACTION_PROCESS_SELECT_ALL = "Select All";
-$ACTION_PROCESS_DESELECT_ALL = "Un-select All";
-
-// prefix before memo for bank charges line 
-$PREFIX_CHARGES = "Total Charges: ";
 
 $js = "";
 //RK replace with new logic
@@ -46,6 +53,29 @@ function retrieve_txn_by_reference( $type, $reference, $date) {
 		return null;
 }
 
+function getQEType($transactionDC) {
+	switch ($transactionDC) {
+		case 'C': return QE_DEPOSIT;
+		case 'D': return QE_PAYMENT; 
+		case 'N': return QE_JOURNAL;
+	}
+}
+
+function getTransType($transactionDC) {
+	switch ($transactionDC) {
+		case 'C': return ST_BANKDEPOSIT;
+		case 'D': return ST_BANKPAYMENT; 
+		case 'N': return ST_JOURNAL;
+	}
+}
+
+function getTransTypeDescription($type) {
+	global $systypes_array;
+	
+	return $systypes_array[$type];
+} 
+
+
 if ($SysPrefs->use_popup_windows)
 	$js .= get_js_open_window(800, 500);
 if (user_use_date_picker())
@@ -54,10 +84,10 @@ if (user_use_date_picker())
 page(_($help_context = "Bank Transactions"), @$_GET['popup'], false, "", $js);
 
 $optypes = array(
-	'SP' => 'Supplier',
-	'CU' => 'Customer',
-	'QE' => 'Quick Entry',
-	'MA' => 'Manual settlement',
+	PRT_SUPPLIER => 'Supplier',
+	PRT_CUSTOMER => 'Customer',
+	PRT_QUICK_ENTRY => 'Quick Entry',
+	PRT_MANUAL_SETTLEMENT => 'Manual settlement',
 );
 
 
@@ -65,10 +95,10 @@ $optypes = array(
 // action
 
 unset($k, $v);
-if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || isset(($_POST['ProcessSingleTransaction']))) {
+if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || isset(($_POST['ProcessSingleTransaction']))) {
 	// RK Initialize count
 	$count = array_fill_keys(
-		array('SP', 'CU', 'QE', 'MA'), 0);
+		array(PRT_SUPPLIER, PRT_CUSTOMER, PRT_QUICK_ENTRY, PRT_MANUAL_SETTLEMENT), 0);
 
 	$processTransactions = null; 
 	if (isset($_POST['ProcessSingleTransaction'])) {
@@ -151,13 +181,17 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 								else {
 									display_notification('Rate determined but not stored: to store rate set configuration in config.php to xr_provider_authoritative=true');
 								}
-							}	
+							}
+							else {
+								$rate = get_last_exchange_rate($txn_currency, $date);
+								display_notification("Rate for date $date could not be retrieved - using last rate $rate");
+							}
 							
 						}
 					}
 
 					switch (true) {
-						case ($_POST['partnerType'][$k] == 'SP' && $trz['transactionDC'] == 'D'):
+						case ($_POST['partnerType'][$k] == PRT_SUPPLIER && $trz['transactionDC'] == 'D'):
 							//supplier payment
 							//make sure we have a unique reference
 							//RK do {
@@ -205,10 +239,10 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_SUPPLIER, $partner_detail_id = ANY_NUMERIC, $account = $trz['account']);
 								// RK
 								// display_notification('Supplier payment processed');
-								$count['SP']++;
+								$count[PRT_SUPPLIER]++;
 							}
 							break;
-						case ($_POST['partnerType'][$k] == 'CU' && $trz['transactionDC'] == 'C'):
+						case ($_POST['partnerType'][$k] == PRT_CUSTOMER && $trz['transactionDC'] == 'C'):
 							//function my_write_customer_payment($trans_no, $customer_id, $branch_id, $bank_account,
 							//	$date_, $ref, $amount, $discount, $memo_, $rate=0, $charge=0, $bank_amount=0)
 							//insert customer payment into database
@@ -241,11 +275,11 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 								update_transactions($tid, $_cids, $status = 1, $deposit_id, ST_BANKDEPOSIT, $reference);
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_CUSTOMER, $partner_detail_id = $_POST["partnerDetailId_$k"], $account = $trz['account']);
 								//RK display_notification('Customer deposit processed');
-								$count['CU']++;
+								$count[PRT_CUSTOMER]++;
 							}
 							break;
-						case ($_POST['partnerType'][$k] == 'QE'):
-							$cart_type = ($trz['transactionDC'] == 'D') ? ST_BANKPAYMENT : ST_BANKDEPOSIT;
+						case ($_POST['partnerType'][$k] == PRT_QUICK_ENTRY):
+							$cart_type = getTransType($trz['transactionDC']);
 							$cart = new items_cart($cart_type);
 							$cart->order_id = 0;
 							$cart->original_amount = $trz['transactionAmount'] + $charge;
@@ -264,43 +298,65 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 								$cart->tran_date = end_fiscalyear();
 							}
 							//this loads the QE into cart!!!
-							//RK $rval = display_quick_entries($cart, $_POST['qeId'][$k], $_POST['amount'][$k], ($_POST['transDC'][$k]=='C') ? QE_DEPOSIT : QE_PAYMENT);
-							$rval = qe_to_cart($cart, $_POST["partnerId_$k"], $trz['transactionAmount'], ($trz['transactionDC'] == 'C') ? QE_DEPOSIT : QE_PAYMENT, $trz['transactionTitle']);
+							//$rval = display_quick_entries($cart, $_POST['qeId'][$k], $_POST['amount'][$k], ($_POST['transDC'][$k]=='C') ? QE_DEPOSIT : QE_PAYMENT);
+							$rval = qe_to_cart($cart, $_POST["partnerId_$k"], $trz['transactionAmount'], getQEType($trz['transactionDC']), $trz['transactionTitle']);
 							$total = $cart->gl_items_total();
-							if ($total != 0) {
-								//need to add the charge to the cart
-								$cart->add_gl_item(get_company_pref('bank_charge_act'), 0, 0, $charge, $PREFIX_CHARGES . $chargeTitle );
-								//process the transaction
+							switch ($cart_type) {
+								case ST_BANKDEPOSIT:
+								case ST_BANKPAYMENT:
+									if ($total != 0) {
+										//need to add the charge to the cart
+										$cart->add_gl_item(get_company_pref('bank_charge_act'), 0, 0, $charge, PREFIX_CHARGES . $chargeTitle );
+										//process the transaction
+		
+										begin_transaction();
+		
+										$trans = write_bank_transaction(
+											$cart->trans_type,
+											$cart->order_id,
+											$our_account['id'],
+											$cart,
+											sql2date($trz['valueTimestamp']),
+											PT_QUICKENTRY,
+											$_POST["partnerId_$k"],
+											0,
+											$cart->reference,
+											$trz['transactionTitle'],
+											true,
+											null
+										);
+		
+										if ( $trans[1]) {
+											update_transactions($tid, $_cids, $status = 1, $trans[1], $cart_type, $cart->reference);
+											commit_transaction();
+											$count[PRT_QUICK_ENTRY]++;
+										}
+				
+									} else {
+										display_notification("QE not loaded: rval=$rval, k=$k, total=$total");
+										//display_notification("debug: <pre>".print_r($_POST, true).'</pre>');
+									}
+									break;
 
-								begin_transaction();
-
-								$trans = write_bank_transaction(
-									$cart->trans_type,
-									$cart->order_id,
-									$our_account['id'],
-									$cart,
-									sql2date($trz['valueTimestamp']),
-									PT_QUICKENTRY,
-									$_POST["partnerId_$k"],
-									0,
-									$cart->reference,
-									$trz['transactionTitle'],
-									true,
-									null
-								);
-
-								if ( $trans[1]) {
-									update_transactions($tid, $_cids, $status = 1, $trans[1], $cart_type, $cart->reference);
-									commit_transaction();
-								}
-								//RK display_notification("Transaction processed via Quick Entry");
-								$count['QE']++;
-							} else {
-								display_notification("QE not loaded: rval=$rval, k=$k, total=$total");
-								//display_notification("debug: <pre>".print_r($_POST, true).'</pre>');
+								case ST_JOURNAL;
+									$cart->event_date = $cart->tran_date;
+									$cart->doc_date = $cart->tran_date;
+									if ($txn_currency != $comp_currency) {
+										$cart->currency = $txn_currency;
+										$cart->rate = $rate;
+									}
+									$cart->memo_ = $trz['transactionTitle'];
+									$trans_no = write_journal_entries($cart);
+									
+									if ( $trans_no) {
+										update_transactions($tid, $_cids, $status = 1, $trans_no, $cart_type, $cart->reference);
+										$count[PRT_QUICK_ENTRY]++;
+									}
+								break;
 							}
+					
 							break;
-						case ($_POST['partnerType'][$k] == 'MA'):
+						case ($_POST['partnerType'][$k] == PRT_MANUAL_SETTLEMENT):
 							//RK display_notification("tid=$tid, cids=`" . $_POST['cids'][$tid] . "`");
 							//RK display_notification("cids_array=" . print_r($_cids, true));
 							$transType = $_POST["transType"][$k];
@@ -311,7 +367,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 								$txn = retrieve_txn_by_reference($transType,$transRef,$transDate);
 								if (isset($txn) && ($transRef == $txn['reference'])) { 
 									update_transactions($tid, $_cids, $status = 1, $txn['trans_no'], $transType, $transRef);
-									$count['MA']++;
+									$count[PRT_MANUAL_SETTLEMENT]++;
 								} 
 								else {
 									display_error("Invalid Type '$transType', reference '$transRef' or date '$transDate for Manual Transaction");
@@ -331,8 +387,8 @@ if ((isset($_POST['action']) && ($_POST['action'] == $ACTION_PROCESS_BULK)) || i
 		display_notification( "No transactions selected for processing");
 	}
 	//RK show total transaction processed 
-	$total = $count['SP']+$count['CU']+$count['QE']+$count['MA'];
-	display_notification("Total transactions processed: $total (Supplier Payments: ".$count['SP'].", Customer Payments: ".$count['CU'].", Quick Entries: ".$count['QE'].", Manual Payments: ".$count['MA'].")");
+	$total = $count[PRT_SUPPLIER]+$count[PRT_CUSTOMER]+$count[PRT_QUICK_ENTRY]+$count[PRT_MANUAL_SETTLEMENT];
+	display_notification("Total transactions processed: $total (Supplier Payments: ".$count[PRT_SUPPLIER].", Customer Payments: ".$count[PRT_CUSTOMER].", Quick Entries: ".$count[PRT_QUICK_ENTRY].", Manual Payments: ".$count[PRT_MANUAL_SETTLEMENT].")");
 } //end of is isset(post[processTranzaction])
 
 /*
@@ -565,22 +621,22 @@ if (1) {
 
 			if (!isset($_POST['partnerType'][$tid])) {
 				if ($transactionDC == 'C')
-					$_POST['partnerType'][$tid] = 'CU';
+					$_POST['partnerType'][$tid] = PRT_CUSTOMER;
 				else
-					$_POST['partnerType'][$tid] = 'SP';
+					$_POST['partnerType'][$tid] = PRT_SUPPLIER;
 
 				// RK preset from transactionCodeDesc
-				if (isset( $transactionCodeDesc) && ($transactionCodeDesc == 'MA')) {
-					$_POST['partnerType'][$tid] = 'MA';
+				if (isset( $transactionCodeDesc) && ($transactionCodeDesc == PRT_MANUAL_SETTLEMENT)) {
+					$_POST['partnerType'][$tid] = PRT_MANUAL_SETTLEMENT;
 				}
 				elseif (isset( $transactionCodeDesc) && strpos( $transactionCodeDesc, ":" )) {
 					list( $partnerType, $value ) = explode(':', $transactionCodeDesc); 
 					switch ($partnerType) {
-						case 'QE':
-							$_POST['partnerType'][$tid] = 'QE';
+						case PRT_QUICK_ENTRY:
+							$_POST['partnerType'][$tid] = PRT_QUICK_ENTRY;
 
-							// lookup quick entries
-							$qe = get_quick_entries((($transactionDC == 'C') ? QE_DEPOSIT : QE_PAYMENT));
+							// lookup quick entries 
+							$qe = get_quick_entries(getQEType($transactionDC));
 							$results =$qe->fetch_all();
 
 							// find a matching quick entry
@@ -595,7 +651,7 @@ if (1) {
 				}
 			}
 
-			label_row("Operation:", (($transactionDC == 'C') ? "Deposit" : "Payment"), "width='25%' class='label'");
+			label_row("Operation:", getTransTypeDescription( getTransType( $transactionDC)), "width='25%' class='label'");
 			label_row("Partner:", array_selector("partnerType[$tid]", $_POST['partnerType'][$tid], $optypes, array('select_submit' => true)));
 
 			if (!isset($_POST["partnerId_$tid"])) {
@@ -603,8 +659,8 @@ if (1) {
 			}
 
 			switch ($_POST['partnerType'][$tid]) {
-					//supplier payment
-				case 'SP':
+				//supplier payment
+				case PRT_SUPPLIER:
 					//propose supplier
 					if (empty($_POST["partnerId_$tid"])) {
 						$match = search_partner_by_bank_account(PT_SUPPLIER, $bankAccount);
@@ -615,7 +671,7 @@ if (1) {
 					label_row(_("Payment To:"), supplier_list("partnerId_$tid", null, false, false));
 					break;
 					//customer deposit
-				case 'CU':
+				case PRT_CUSTOMER:
 					//propose customer
 					if (empty($_POST["partnerId_$tid"])) {
 						$match = search_partner_by_bank_account(PT_CUSTOMER, $bankAccount);
@@ -636,15 +692,15 @@ if (1) {
 
 					break;
 					// quick entry
-				case 'QE':
+				case PRT_QUICK_ENTRY:
 					//label_row("Option:", "<b>Process via quick entry</b>");
-					$qe_text = quick_entries_list("partnerId_$tid", null, (($transactionDC == 'C') ? QE_DEPOSIT : QE_PAYMENT), true);
+					$qe_text = quick_entries_list("partnerId_$tid", null, getQEType($transactionDC), true);
 					$qe = get_quick_entry(get_post("partnerId_$tid"));
 					$qe_text .= " " . $qe['base_desc'];
 
 					label_row("Quick Entry:", $qe_text);
 					break;
-				case 'MA':
+				case PRT_MANUAL_SETTLEMENT:
 					hidden("partnerId_$tid", 'manual'); 
 					journal_types_list_cells("Transaction Type:", "transType[$tid]");
 					//function text_input($name, $value=null, $size='', $max='', $title='', $params='')
@@ -659,16 +715,16 @@ if (1) {
 			}
 			
 			if (isset($_POST['action'])) {
-				if ($_POST['action'] == $ACTION_PROCESS_SELECT_ALL) {
+				if ($_POST['action'] == ACTION_PROCESS_SELECT_ALL) {
 					$selected = true;
 				}
-				if ($_POST['action'] == $ACTION_PROCESS_DESELECT_ALL) {
+				if ($_POST['action'] == ACTION_PROCESS_DESELECT_ALL) {
 					$selected = false;
 				}
 			}	
 
 			label_row("", checkbox( "Selected for Bulk Processing", "ProcessTransaction[$tid]", $selected));
-			label_row("", submit("ProcessSingleTransaction[$tid]", _($ACTION_PROCESS_SINGLE), false, '', 'default'));
+			label_row("", submit("ProcessSingleTransaction[$tid]", _(ACTION_PROCESS_SINGLE), false, '', 'default'));
 
 			//other common info
 			hidden("cids[$tid]", $cids);
@@ -682,9 +738,9 @@ if (1) {
 	if ($trzs) {
 		start_row();
 		echo '<td align="center" colspan="2">';
-		echo submit("action", _($ACTION_PROCESS_SELECT_ALL), false, '');
-		echo submit("action", _($ACTION_PROCESS_DESELECT_ALL), false, '');
-		echo submit("action", _($ACTION_PROCESS_BULK), false, '');
+		echo submit("action", _(ACTION_PROCESS_SELECT_ALL), false, '');
+		echo submit("action", _(ACTION_PROCESS_DESELECT_ALL), false, '');
+		echo submit("action", _(ACTION_PROCESS_BULK), false, '');
 
 		echo '</td>';
 		end_row();
