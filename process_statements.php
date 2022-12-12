@@ -308,7 +308,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 										//need to add the charge to the cart
 										$cart->add_gl_item(get_company_pref('bank_charge_act'), 0, 0, $charge, PREFIX_CHARGES . $chargeTitle );
 										//process the transaction
-		
+	
 										begin_transaction();
 		
 										$trans = write_bank_transaction(
