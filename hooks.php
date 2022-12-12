@@ -93,6 +93,6 @@ class hooks_bank_import extends hooks
 		$result = json_decode($json, true);
 		$rate = $result['response']['rates'][$companyCurrency];
 
-		return $rate;
+		return exrate_format($rate);
 	}
 }
