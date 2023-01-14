@@ -18,10 +18,11 @@ include_once($path_to_root . "/modules/bank_import/includes/pdata.inc");
 
 
 $js = '';
-if ($use_popup_windows)
-	$js .= get_js_open_window(800, 500);
-if ($use_date_picker)
-	$js .= get_js_date_picker();
+// not required anymore
+// if ($use_popup_windows)
+// 	$js .= get_js_open_window(800, 500);
+// if ($use_date_picker)
+// 	$js .= get_js_date_picker();
 
 page(_($help_context = "Manage Partners Bank Accounts"), false, false, '', $js);
 
