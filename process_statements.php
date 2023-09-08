@@ -474,7 +474,8 @@ if (1) {
 	//load data
 	$trzs = array();
 	while ($myrow = db_fetch($res)) {
-		$trz_code = $myrow['transactionCode'];
+		// generate unique key
+		$trz_code =  $myrow['our_account'].$myrow['smt_id'].$myrow['transactionCode'] ; 
 		if (!isset($trzs[$trz_code])) {
 			$trzs[$trz_code] = array();
 		}
