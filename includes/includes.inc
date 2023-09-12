@@ -10,6 +10,16 @@ function get_transaction($tid)
 	return db_fetch($result);
 }
 
+function get_transaction_lines($tid)
+{
+	$sql = "
+	    SELECT t.*, s.account our_account FROM " . TB_PREF . "bi_transactions t
+    	    LEFT JOIN " . TB_PREF . "bi_statements as s ON t.smt_id = s.id
+	    WHERE t.id=" . db_escape($tid);
+	$result = db_query($sql, "could not get transaction with id $tid");
+	return db_fetch($result);
+}
+
 function update_transactions($tid, $cids, $status, $trans_no, $trans_type, $matchinfo)
 {
 	$cids[] = $tid;
