@@ -90,6 +90,40 @@ function splitTransactionCodeDesc($transactionCodeDesc) {
     return $components;
 }
 
+function manageExchangeRate($date, $txn_currency, $rate) {
+	global $SysPrefs;
+    $msg = "";
+	$update = false;
+
+	if (!$rate) {
+		$rate = get_date_exchange_rate($txn_currency, $date);
+
+		if (!$rate) {
+			$rate = retrieve_exrate($txn_currency, $date);
+			if ($rate) {
+				$update = true;
+			} else {
+				$rate = get_last_exchange_rate($txn_currency, $date);
+				$msg = "Rate for date $date could not be retrieved - using last rate $rate";
+			}
+		}
+	}
+	else {
+		$update = true;
+	}
+
+	if ($update) {
+		if ($SysPrefs->xr_provider_authoritative) {
+			// store rate
+			add_exchange_rate($txn_currency, $date, $rate, $rate);
+		} else {
+			$msg = "Rate determined but not stored: to store rate set configuration in config.php to xr_provider_authoritative=true";
+		}
+	}
+	
+    return array($rate, $msg);
+}
+
 
 if ($SysPrefs->use_popup_windows)
 	$js .= get_js_open_window(800, 500);
@@ -184,54 +218,23 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 
 					$rate = null;
 					$txn_currency = $smt_account['bank_curr_code'];
-					if ($txn_currency != $comp_currency) {
-						$date = sql2date($trz['valueTimestamp']);
-						$rate = get_date_exchange_rate($txn_currency, $date);
-						if (!$rate) { // rate = 0 if unsuccessfull
-							$rate = retrieve_exrate($txn_currency, $date);
-							if ($rate) {
-								if ($SysPrefs->xr_provider_authoritative) {
-									// store rate
-									add_exchange_rate($txn_currency, $date, $rate, $rate);
-								}
-								else {
-									display_notification('Rate determined but not stored: to store rate set configuration in config.php to xr_provider_authoritative=true');
-								}
-							}
-							else {
-								$rate = get_last_exchange_rate($txn_currency, $date);
-								display_notification("Rate for date $date could not be retrieved - using last rate $rate");
-							}
-							
-						}
-					}
+					$date = sql2date($trz['valueTimestamp']);
 
 					switch (true) {
 						case ($_POST['partnerType'][$k] == PRT_SUPPLIER && (splitTransactionCodeDesc($trz['transactionCodeDesc'])[0] == ST_SUPPAYMENT)):
 							//supplier payment
-							//make sure we have a unique reference
-							//RK do {
+							if ($txn_currency != $comp_currency) {
+								list ($rate, $msg) = manageExchangeRate( $date, $txn_currency, "");
+								if ($msg) {
+									display_notification( $msg);
+								}
+							}
 							$transType = ST_SUPPAYMENT;
 							$reference = $Refs->get_next($transType);
 							if (!is_new_reference($reference, $transType)) {
 								display_error("Reference: $reference of Transaction Type: $transType already used.");
 								break;
 							}
-
-							//RK } while (!is_new_reference($reference, ST_SUPPAYMENT));
-
-							//RK replaced obsolete function add_supp_payment
-							//  $payment_id = add_supp_payment(
-							// 	$_POST["partnerId_$k"],
-							// 	sql2date($trz['valueTimestamp']),
-							// 	$smt_account['id'],
-							// 	user_numeric($trz['transactionAmount']),
-							// 	0,
-							// 	$reference,
-							// 	$trz['transactionTitle'],
-							// 	0,
-							// 	user_numeric($charge)
-							// );
 
 							//RK with write_supp_payment( $trans_no, $supplier_id, $bank_account,$date_, $ref, $supp_amount, $supp_discount, $memo_, $bank_charge=0, $bank_amount=0, $dimension=0, $dimension2=0)
 							$payment_id = write_supp_payment(
@@ -259,10 +262,13 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							}
 							break;
 						case ($_POST['partnerType'][$k] == PRT_CUSTOMER && (splitTransactionCodeDesc($trz['transactionCodeDesc'])[0] == ST_CUSTPAYMENT)):
-							//function my_write_customer_payment($trans_no, $customer_id, $branch_id, $bank_account,
-							//	$date_, $ref, $amount, $discount, $memo_, $rate=0, $charge=0, $bank_amount=0)
-							//insert customer payment into database
-							//RK do {
+							// customer payment
+							if ($txn_currency != $comp_currency) {
+								list ($rate, $msg) = manageExchangeRate( $date, $txn_currency, "");
+								if ($msg) {
+									display_notification( $msg);
+								}
+							}
 							$transType = ST_BANKDEPOSIT;
 							$reference = $Refs->get_next($transType);
 							if (!is_new_reference($reference, $transType)) {
@@ -300,15 +306,19 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							$cart->order_id = 0;
 							$cart->original_amount = $trz['transactionAmount'] + $charge;
 
-							//RK do {
+							if ($txn_currency != $comp_currency) {
+								list ($rate, $msg) = manageExchangeRate( $date, $txn_currency, "");
+								if ($msg) {
+									display_notification( $msg);
+								}
+							}
+
 							$cart->reference = $Refs->get_next($cart->trans_type);
 							if (!is_new_reference($cart->reference, $cart->trans_type)) {
 								display_error("Reference: $cart->reference of Transaction Type: $cart->trans_type already used.");
 								break;
 							}
-														
-							//RK } while (!is_new_reference($cart->reference, $cart->trans_type));
-
+													
 							$cart->tran_date = sql2date($trz['valueTimestamp']);
 							if (!is_date_in_fiscalyear($cart->tran_date)) {
 								$cart->tran_date = end_fiscalyear();
@@ -378,10 +388,62 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							$debit_account = get_bank_account_by_number($trz['account']);
 							list($credit_account, $credit_amount) = explode(":", $trz['accountName']);
 							$credit_account = get_bank_account_by_number($credit_account);
-							$faDate = sql2date($trz['valueTimestamp']);
+
+							// case comp	txn		credit	
+							// 1	SGD		SGD		SGD		
+							// 2	SGD		SGD		!SGD	
+							// 3	SGD		!SGD 	SGD		
+							// 4	SGD		!SGD	!SGD	
+
+							// determine fx rates to avoid fx gain/loss for currency convertions
+							$credit_currency = $credit_account['bank_curr_code'];
+							$txn_amount = $trz['transactionAmount'];
+							$txn_rate = null;
+							$credit_rate = null;
+							switch (true) {
+								case ($txn_currency == $comp_currency && $credit_currency == $comp_currency):
+									// case 1: no fx rates involved
+									break;
+								case ($txn_currency == $comp_currency && $credit_currency != $comp_currency):
+									$credit_rate = $txn_amount / $credit_amount;
+									// case 2: calc credit_rate
+									list ($txn_rate, $msg) = manageExchangeRate( $date, $credit_currency, $credit_rate);
+									if ($msg) {
+										display_notification( $msg);
+									}
+									break;
+
+								case ($txn_currency != $comp_currency && $credit_currency == $comp_currency):
+									$txn_rate = $credit_amount / $txn_amount;
+									// case 3: calc txn rate
+									list ($txn_rate, $msg) = manageExchangeRate( $date, $txn_currency, $txn_rate);
+									if ($msg) {
+										display_notification( $msg);
+									}
+									break;
+
+								case ($txn_currency != $comp_currency && $credit_currency != $comp_currency):
+									// case 4:
+									// retrive txn_rate
+									list ($txn_rate, $msg) = manageExchangeRate( $date, $txn_currency, "");
+									if ($msg) {
+										display_notification( $msg);
+									}
+									else {
+										$credit_rate = $txn_amount * $txn_rate / $credit_amount;
+										// calc credit_rate
+										list ($txn_rate, $msg) = manageExchangeRate( $date, $credit_currency, $credit_rate);
+										if ($msg) {
+											display_notification( $msg);
+										}
+									}
+									break;
+									
+							}
+
 							$reference = $Refs->get_next(ST_BANKTRANSFER);
 							// add_bank_transfer( $from_account, $to_account, $date_, $amount, $ref, $memo_, $dim1, $dim2, $charge=0, $target_amount=0)
-							$trans_no = add_bank_transfer($debit_account['id'], $credit_account['id'], $faDate, user_numeric($trz['transactionAmount']), $reference, $trz['transactionTitle'], "","", 0, user_numeric($credit_amount));
+							$trans_no = add_bank_transfer($debit_account['id'], $credit_account['id'], $date, user_numeric($txn_amount), $reference, $trz['transactionTitle'], "","", 0, user_numeric($credit_amount));
 							
 							if ( $trans_no) {
 								update_transactions($tid, $_cids, $status = 1, $trans_no, ST_BANKTRANSFER, $reference);
