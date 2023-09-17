@@ -461,6 +461,13 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 								// check if transaction exists
 								$txn = retrieve_txn_by_reference($transType,$transRef,$transDate);
 								if (isset($txn) && ($transRef == $txn['reference'])) { 
+									// set fx rate
+									if ($txn_currency != $comp_currency) {
+										list ($rate, $msg) = manageExchangeRate( $transDate, $txn_currency, "");
+										if ($msg) {
+											display_notification( $msg);
+										}
+									}
 									update_transactions($tid, $_cids, $status = 1, $txn['trans_no'], $transType, $transRef);
 									$count[PRT_MANUAL_SETTLEMENT]++;
 								} 
