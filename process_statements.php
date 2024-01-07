@@ -1,12 +1,5 @@
 <?php
 
-//RK define processing types - better term than Partner Type
-define( 'PRT_SUPPLIER', 'SP');
-define( 'PRT_CUSTOMER', 'CU');
-define( 'PRT_QUICK_ENTRY', 'QE');
-define( 'PRT_TRANSFER', 'TR');
-define( 'PRT_MANUAL_SETTLEMENT', 'MA');
-
 // Button actions
 define( 'ACTION_PROCESS_SINGLE', 'Process Single');
 define( 'ACTION_PROCESS_BULK', 'Bulk Process Selected');
@@ -28,6 +21,8 @@ include_once($path_to_root . "/includes/ui/ui_controls.inc");
 include_once($path_to_root . "/includes/ui/items_cart.inc");
 include_once($path_to_root . "/includes/data_checks.inc");
 include_once($path_to_root . "/gl/includes/db/gl_db_banking.inc"); // contains add_bank_transfer
+include_once($path_to_root . "/gl/includes/db/gl_db_bank_accounts.inc"); // contains get_quick_entries
+include_once($path_to_root . "/purchasing/includes/db/suppliers_db.inc"); // contains get_suppliers_search_sql
 
 include_once($path_to_root . "/modules/bank_import/includes/includes.inc");
 include_once($path_to_root . "/modules/bank_import/includes/pdata.inc");
@@ -52,15 +47,6 @@ function retrieve_txn_by_reference( $type, $reference, $date) {
 	}
 	else
 		return null;
-}
-
-function getProcessingType( $paymentType) {
-	switch ($paymentType) {
-		case PT_CUSTOMER: return PRT_SUPPLIER;
-		case PT_SUPPLIER: return PRT_SUPPLIER; 
-		case PT_QUICKENTRY: return PRT_QUICK_ENTRY;
-		default: PRT_MANUAL_SETTLEMENT;
-	}
 }
 
 function getQEType($transType) {
@@ -255,7 +241,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//RK use reference which does not change when is modified (trans_id is changing and link brakes)
 							if ($payment_id) {
 								update_transactions($tid, $_cids, $status = 1, $payment_id, ST_SUPPAYMENT, $reference);
-								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_SUPPLIER, $partner_detail_id = ANY_NUMERIC, $account = $trz['account']);
+								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PRT_SUPPLIER, $partner_detail_id = ANY_NUMERIC, $account = $trz['account']);
 								// RK
 								// display_notification('Supplier payment processed');
 								$count[PRT_SUPPLIER]++;
@@ -295,7 +281,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//update trans with payment_id details
 							if ($deposit_id) {
 								update_transactions($tid, $_cids, $status = 1, $deposit_id, ST_BANKDEPOSIT, $reference);
-								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_CUSTOMER, $partner_detail_id = $_POST["partnerDetailId_$k"], $account = $trz['account']);
+								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PRT_CUSTOMER, $partner_detail_id = $_POST["partnerDetailId_$k"], $account = $trz['account']);
 								//RK display_notification('Customer deposit processed');
 								$count[PRT_CUSTOMER]++;
 							}
@@ -343,7 +329,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 											$smt_account['id'],
 											$cart,
 											sql2date($trz['valueTimestamp']),
-											PT_QUICKENTRY,
+											PRT_QUICK_ENTRY,
 											$_POST["partnerId_$k"],
 											0,
 											$cart->reference,
@@ -731,7 +717,7 @@ if (1) {
 						case ST_BANKPAYMENT:
 						case ST_CUSTPAYMENT:
 						case ST_SUPPAYMENT:
-							$partnerType = getProcessingType($paymentType);
+							$partnerType = $paymentType;
 							break;
 						case ST_BANKTRANSFER:
 							$partnerType = PRT_TRANSFER;
@@ -770,9 +756,17 @@ if (1) {
 			switch ($_POST['partnerType'][$tid]) {
 				//supplier payment
 				case PRT_SUPPLIER:
-					//propose supplier
+					// select if value supplied
+					if (empty($_POST["partnerId_$tid"]) && $value) {
+						$match = search_suppliers( $value);
+						if (!empty($match) && (count($match) == 1)) {
+							// one matching enrty
+							$_POST["partnerId_$tid"] = $match[0]['supplier_id'];
+						}
+					}
+					// propose based on bank account
 					if (empty($_POST["partnerId_$tid"])) {
-						$match = search_partner_by_bank_account(PT_SUPPLIER, $bankAccount);
+						$match = search_partner_by_bank_account(PRT_SUPPLIER, $bankAccount);
 						if (!empty($match)) {
 							$_POST["partnerId_$tid"] = $match['partner_id'];
 						}
@@ -783,7 +777,7 @@ if (1) {
 				case PRT_CUSTOMER:
 					//propose customer
 					if (empty($_POST["partnerId_$tid"])) {
-						$match = search_partner_by_bank_account(PT_CUSTOMER, $bankAccount);
+						$match = search_partner_by_bank_account(PRT_CUSTOMER, $bankAccount);
 						if (!empty($match)) {
 							$_POST["partnerId_$tid"] = $match['partner_id'];
 							$_POST["partnerDetailId_$tid"] = $match['partner_detail_id'];

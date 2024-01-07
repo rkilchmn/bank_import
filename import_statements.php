@@ -125,8 +125,8 @@ function do_upload_form() {
     table_header($th);
 
     label_row(_("Format:"), array_selector('parser', null, $parsers, array('select_submit' => true)));
-    //RK foreach($_parsers[$_POST['parser']]['select'] as $param => $label) {
-	foreach($_parsers[$_POST['parser']] as $param => $label) {
+    foreach($_parsers[$_POST['parser']]['select'] as $param => $label) {
+	// foreach($_parsers[$_POST['parser']] as $param => $label) {
 	switch($param) {
 	    case 'bank_account':
 		bank_accounts_list_row($label, 'bank_account', $selected_id=null, $submit_on_change=false);
@@ -161,8 +161,8 @@ function parse_uploaded_files() {
     //prepare static data for parser
     $static_data = array();
     $_parsers = getParsers();
-    //RK foreach($_parsers[$_POST['parser']]['select'] as $param => $label) {
-	foreach($_parsers[$_POST['parser']] as $param => $label) {
+    foreach($_parsers[$_POST['parser']]['select'] as $param => $label) {
+	// foreach($_parsers[$_POST['parser']] as $param => $label) {
 	switch($param) {
 	    case 'bank_account':
 		//get bank account data
@@ -180,6 +180,11 @@ function parse_uploaded_files() {
 
     foreach($_FILES['files']['name'] as $id=>$fname) {
     	echo "Processing file `$fname` with format `{$_parsers[$_POST['parser']]['name']}`...\n";
+
+		// Use pathinfo to extract file information
+		$fileInfo = pathinfo($fname);
+		// Get the file name without extension
+		$static_data['filename'] = $fileInfo['filename'];
 
     	$content = file_get_contents($_FILES['files']['tmp_name'][$id]);
     	$statements = $parser->parse($content, $static_data, $debug=false); // false for no debug, true for debug

@@ -1,5 +1,21 @@
 <?php
 
+//RK define processing types - better term than Partner Type
+define( 'PRT_SUPPLIER', 'SP');
+define( 'PRT_CUSTOMER', 'CU');
+define( 'PRT_QUICK_ENTRY', 'QE');
+define( 'PRT_TRANSFER', 'TR');
+define( 'PRT_MANUAL_SETTLEMENT', 'MA');
+
+define( 'DC_CREDIT', 'C');
+define( 'DC_DEBIT', 'D');
+
+// Define a constant to delimt values
+define('DELIM', ':');
+
+// internal date format, example '2023-12-16'
+define('TARGET_DATE_FORMAT', 'Y-m-d');
+
 function get_transaction($tid)
 {
 	$sql = "
