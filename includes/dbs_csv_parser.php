@@ -1,7 +1,7 @@
 <?php
 
 // contains definitions for ST_BANKDEPOSIT etc
-
+	
 // include constants
 $path_to_root = "../..";
 include_once($path_to_root . "/modules/bank_import/includes/dbs_csv_config.php");
@@ -20,15 +20,15 @@ class dbs_csv_parser extends parser
 	private function excuteTransactionLogic($transactionLogic, $trz)
 	{
 		// condition
-		$condition = $transactionLogic[$trz->transactionDC][_CONDITION];
+		$condition = $transactionLogic[$trz->transactionDC][CONDITION];
 		$conditionEval = $condition($trz);
 
 		// action
-		$action = $transactionLogic[$trz->transactionDC][_ACTION][$conditionEval];
+		$action = $transactionLogic[$trz->transactionDC][ACTION][$conditionEval];
 
 		if (!isset($action)) {
 			// default action
-			$action = $transactionLogic[$trz->transactionDC][_ACTION][_DEFAULT];
+			$action = $transactionLogic[$trz->transactionDC][ACTION][DEF];
 		}
 
 		$action($trz);
@@ -132,7 +132,7 @@ class dbs_csv_parser extends parser
 					$this->excuteTransactionLogic($transactionLogic, $trz);
 				} else {
 					// Apply default logic if transactionDC does not match
-					$transactionLogic = $accountingRules[_DEFAULT];
+					$transactionLogic = $accountingRules[DEF];
 
 					if (isset($transactionLogic[$trz->transactionDC])) {
 						$this->excuteTransactionLogic($transactionLogic, $trz);
@@ -140,7 +140,7 @@ class dbs_csv_parser extends parser
 				}
 			} else {
 				// Apply default logic if transactionDC does not match
-				$transactionLogic = $accountingRules[_DEFAULT];
+				$transactionLogic = $accountingRules[DEF];
 
 				if (isset($transactionLogic[$trz->transactionDC])) {
 					$this->excuteTransactionLogic($transactionLogic, $trz);

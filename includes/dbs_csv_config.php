@@ -7,111 +7,211 @@ include_once($path_to_root . "/includes/types.inc");
 include_once($path_to_root . "/modules/bank_import/includes/includes.inc");
 
 // define quick entries defined in system
-define('QE_BANK_CHARGE', 'BankCharge');
-define('QE_BANK_CHARGE_REF', 'BankChargeRefund');
+define('QE_PAYMENT_BANKCHARGE', 'BankCharge');
+define('QE_DEPOSIT_CHARGE_REF', 'BankChargeRefund');
+define('QE_DEPOSIT_IRAS_REF', 'IRASRefund');
+define('QE_PAYMENT_IRAS', 'IRASInstallment');
 
 // prefined defined constants/keywords -> helps to identify typos
-define('_DEFAULT', 'default');
-define('_CONDITION', 'condition');
-define('_ACTION', 'action');
+define('DEF', 'default'); // DEFAULT is recognized as keyword in PHP
+define('CONDITION', 'condition');
+define('ACTION', 'action');
+define('DESCRIPTION', 'description');
+
 
 // Example 16-Dec-2023
 define('FILE_DATE_FORMAT', 'd-M-Y');
 
 $accountingRules = [
-    'BAT' => [ // BUSINESS ADVANCE CARD TRANSACTION
+    'BAT' => [
+        DESCRIPTION => "BUSINESS ADVANCE CARD TRANSACTION",
         DC_CREDIT => [
-            _CONDITION => function ($trz) {
-                return strpos($trz->transactionTitle1, 'CASHBACK') !== false ? 'CASHBACK' : _DEFAULT;
+            CONDITION => function ($trz) {
+                return stristr($trz->transactionTitle1, 'CASHBACK') !== false ? 'CASHBACK' : DEF;
             },
-            _ACTION => [
+            ACTION => [
                 'CASHBACK' => 
                     function ($trz) {
-                        $trz->transactionCodeDesc = ST_BANKDEPOSIT.DELIM.PRT_QUICK_ENTRY.DELIM.QE_BANK_CHARGE_REF;
+                        $trz->transactionCodeDesc = PRT_QUICK_ENTRY.DELIM.QE_DEPOSIT.DELIM.QE_DEPOSIT_CHARGE_REF;
                     },
-                _DEFAULT => 
+                DEF => 
                     function ($trz) {
                         $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
                     },
             ],
         ],
         DC_DEBIT => [
-            _CONDITION => function ($trz) {
-                return strpos($trz->transactionTitle1, 'ZERO1 PTE LTD') !== false ? 'Zero1' : _DEFAULT;
+            CONDITION => function ($trz) {
+                return stristr($trz->transactionTitle1, 'ZERO1 PTE LTD') !== false ? 'Zero1' : DEF;
             },
-            _ACTION => [
+            ACTION => [
                 'Zero1' =>
                     function ($trz) {
-                        $trz->transactionCodeDesc = ST_SUPPAYMENT.DELIM.PRT_SUPPLIER.DELIM.'Zero1';
+                        $trz->transactionCodeDesc = PRT_SUPPLIER.DELIM.'Zero1';
                     },
-                _DEFAULT => 
+                DEF => 
                     function ($trz) {
-                        $trz->transactionCodeDesc = ST_SUPPAYMENT.DELIM.PRT_SUPPLIER;
-                    },
-            ],
-        ],
-    ],
-    'GRS' => [ // GIRO PAYROLL
-        DC_DEBIT => [
-            _CONDITION => function ($trz) {
-                return strpos($trz->transactionTitle1, 'Salary') !== false ? 'Salary_Roger' : _DEFAULT;
-            },
-            _ACTION => [
-                'Salary_Roger' => 
-                    function ($trz) {
-                        $trz->transactionCodeDesc = ST_SUPPAYMENT.DELIM.PRT_SUPPLIER.DELIM.'Employee Roger';
-                    },
-                _DEFAULT => 
-                    function ($trz) {
-                        $trz->transactionCodeDesc = ST_SUPPAYMENT.DELIM.PRT_SUPPLIER;
+                        $trz->transactionCodeDesc = PRT_SUPPLIER;
                     },
             ],
         ],
     ],
-    'ADV' => [ // PAYMENT ADVICE
+    'GRS' => [ 
+        DESCRIPTION => "GIRO PAYROLL",
         DC_DEBIT => [
-            _CONDITION => function ($trz) {
-                return _DEFAULT;
-            },
-            _ACTION => [
-                _DEFAULT => 
+            CONDITION => function ($trz) {
+                    return DEF;
+                },
+            ACTION => [
+                DEF => 
                     function ($trz) {
-                        $trz->transactionCodeDesc = ST_BANKPAYMENT.DELIM.PRT_QUICK_ENTRY.DELIM.QE_BANK_CHARGE;
+                        $trz->transactionCodeDesc = PRT_SUPPLIER.DELIM.'Employee Roger';
+                    },
+            ],
+        ],
+    ],
+    'ICT' => [
+        DESCRIPTION => "FAST PAYMENT",
+        DC_DEBIT => [
+            CONDITION => function ($trz) {
+                if (stristr($trz->accountName1, 'CENTRAL PROVIDENT FUND BOARD')) {
+                    return 'CPF';
+                }
+                elseif (stristr($trz->accountName1, 'ContactOne Professional Services')) {
+                    return 'Contact One';
+                }
+                elseif (stristr($trz->accountName1, 'FINANCIAL TECHNOLOGY n SECURITY SOL')) {
+                    return 'FINSEC_OCBC';
+                }
+                else {
+                    return DEF;
+                }
+            },
+            ACTION => [
+                'CPF' => 
+                    function ($trz) {
+                        $trz->transactionCodeDesc = PRT_SUPPLIER.DELIM.'CPF';
+                    },
+                'Contact One' => 
+                    function ($trz) {
+                        $trz->transactionCodeDesc = PRT_SUPPLIER.DELIM.'Contact One';
+                    },
+                'FINSEC_OCBC' => 
+                    function ($trz) {
+                        // use FA Bank Account field "Number"
+                        $fee = "0.50"; // test
+                        $trz->transactionCodeDesc = PRT_TRANSFER.DELIM.'713430494001'.DELIM.$trz->transactionAmount.DELIM.$fee;
+                    },
+                DEF => 
+                    function ($trz) {
+                        $trz->transactionCodeDesc = PRT_SUPPLIER;
+                    },
+            ],
+        ],
+    ],
+    'IBG' => [
+        DESCRIPTION => "INTERBANK GIRO",
+        DC_DEBIT => [
+            CONDITION => function ($trz) {
+                if (stristr($trz->transactionTitle1, 'IRAS')) {
+                    return 'IRAS';
+                }
+                else {
+                    return DEF;
+                }
+            },
+            ACTION => [
+                'IRAS' => 
+                    function ($trz) {
+                        $trz->transactionCodeDesc = PRT_QUICK_ENTRY.DELIM.QE_PAYMENT.DELIM.QE_PAYMENT_IRAS;
+                    },
+                DEF => 
+                    function ($trz) {
+                        $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
+                    },
+            ],
+            DC_CREDIT => [
+                CONDITION => function ($trz) {
+                    if (stristr($trz->transactionTitle1, 'IRAS')) {
+                        return 'IRAS';
+                    }
+                    else {
+                        return DEF;
+                    }
+                },
+                ACTION => [
+                    'IRAS' => 
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_QUICK_ENTRY.DELIM.QE_DEPOSIT_IRAS_REF;
+                        },
+                    DEF => 
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
+                        },
+                ],
+            ],
+        ],
+    ],
+    'SCICT' => [
+        DESCRIPTION => "SERVICE CHARGE FOR PAYNOW PAYMENTS",
+        DC_DEBIT => [
+            CONDITION => function ($trz) {
+                return DEF;
+            },
+            ACTION => [
+                DEF => 
+                    function ($trz) {
+                        $trz->transactionCodeDesc = PRT_QUICK_ENTRY.DELIM.QE_PAYMENT.DELIM.QE_PAYMENT_BANKCHARGE;
+                    },
+            ],
+        ],  
+    ],
+    'ADV' => [ 
+        DESCRIPTION => "PAYMENT ADVICE",
+        DC_DEBIT => [
+            CONDITION => function ($trz) {
+                return DEF;
+            },
+            ACTION => [
+                DEF => 
+                    function ($trz) {
+                        $trz->transactionCodeDesc = PRT_QUICK_ENTRY.DELIM.QE_PAYMENT.DELIM.QE_PAYMENT_BANKCHARGE;
                     },
             ],
         ],
         DC_CREDIT => [
-            _CONDITION => function ($trz) {
-                return _DEFAULT;
+            CONDITION => function ($trz) {
+                return DEF;
             },
-            _ACTION => [
-                _DEFAULT => 
+            ACTION => [
+                DEF => 
                     function ($trz) {
-                        $trz->transactionCodeDesc = ST_BANKDEPOSIT.DELIM.PRT_QUICK_ENTRY.DELIM.QE_BANK_CHARGE_REF;
+                        $trz->transactionCodeDesc = PRT_QUICK_ENTRY.DELIM.QE_DEPOSIT.DELIM.QE_DEPOSIT_CHARGE_REF;
                     },
             ],
         ],
     ],
-    _DEFAULT => [
+    DEF => [
+        DESCRIPTION => "Default Transaction",
         DC_CREDIT => [
-            _CONDITION => function ($trz) {
-                return _DEFAULT;
+            CONDITION => function ($trz) {
+                return DEF;
             },
-            _ACTION => [
-                _DEFAULT => 
+            ACTION => [
+                DEF => 
                     function ($trz) {
-                        $trz->transactionCodeDesc = $trz->transactionCodeDesc = ST_BANKDEPOSIT.DELIM.PRT_MANUAL_SETTLEMENT;
+                        $trz->transactionCodeDesc = $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
                     }
             ],
         ],
         DC_DEBIT => [
-            _CONDITION => function ($trz) {
-                return _DEFAULT;
+            CONDITION => function ($trz) {
+                return DEF;
             },
-            _ACTION => [
-                _DEFAULT => 
+            ACTION => [
+                DEF => 
                     function ($trz) {
-                        $trz->transactionCodeDesc = $trz->transactionCodeDesc = ST_BANKPAYMENT.DELIM.PRT_MANUAL_SETTLEMENT;
+                        $trz->transactionCodeDesc = $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
                     }
             ],
         ],

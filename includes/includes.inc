@@ -10,7 +10,7 @@ define( 'PRT_MANUAL_SETTLEMENT', 'MA');
 define( 'DC_CREDIT', 'C');
 define( 'DC_DEBIT', 'D');
 
-// Define a constant to delimt values
+// Define a constant to DELIMt values
 define('DELIM', ':');
 
 // internal date format, example '2023-12-16'
