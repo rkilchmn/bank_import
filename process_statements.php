@@ -404,7 +404,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 
 							// determine fx rates to avoid fx gain/loss for currency convertions
 							$credit_currency = $credit_account['bank_curr_code'];
-							
+
 							$txn_amount = $trz['transactionAmount'];
 							// debit amount is sum of txn amount and charge
 							if ($transferCharge > 0) 
@@ -464,8 +464,8 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 						case ($_POST['processingType'][$k] == PRT_MANUAL_SETTLEMENT):
 							//RK display_notification("tid=$tid, cids=`" . $_POST['cids'][$tid] . "`");
 							//RK display_notification("cids_array=" . print_r($_cids, true));
-							$transType = $_POST["transType"][$k];
-							$transRef = $_POST["transRef"][$k];
+							$transType = $_POST["partnerId_manualTransType_$k"];
+							$transRef = $_POST["partnerId_manualTransRef_$k"];
 							$transDate = sql2date($trz['valueTimestamp']);
 							if (isset($transType) && isset($transRef)) {
 								// check if transaction exists
@@ -481,7 +481,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 									update_transactions($tid, $_cids, $status = 1, $txn['trans_no'], $transType, $transRef);
 									$count[PRT_MANUAL_SETTLEMENT]++;
 								} else {
-									display_error("Invalid Type '$transType', reference '$transRef' or date '$transDate for Manual Transaction");
+									display_error("Invalid Type '$transType', reference '$transRef' or date '$transDate' for Manual Transaction");
 								}
 							} else {
 								display_notification('Type or Reference for Manual Transaction missing');
@@ -880,9 +880,9 @@ if (1) {
 
 					case PRT_MANUAL_SETTLEMENT:
 						hidden("partnerId_$tid", 'manual');
-						journal_types_list_cells("Transaction Type:", "transType[$tid]");
+						journal_types_list_cells("Transaction Type:","partnerId_manualTransType_$tid");
 						//function text_input($name, $value=null, $size='', $max='', $title='', $params='')
-						label_row(_("Transaction Reference:"),  text_input("transRef[$tid]"));
+						label_row(_("Transaction Reference:"),  text_input("partnerId_manualTransRef_$tid"));
 
 						break;
 				}
