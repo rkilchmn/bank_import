@@ -405,16 +405,24 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							// determine fx rates to avoid fx gain/loss for currency convertions
 							$credit_currency = $credit_account['bank_curr_code'];
 
-							$txn_amount = $trz['transactionAmount'];
-							// debit amount is sum of txn amount and charge
+							$txn_stm_amount = $trz['transactionAmount'];
+							$txn_amount = $txn_stm_amount;
+							// amount debited from source bank account is sum of txn amount and charge
 							if ($transferCharge > 0) 
 								$txn_amount = $txn_amount - $transferCharge;
 
 							$txn_rate = null;
 							$credit_rate = null;
+							$errMsg = "";
 							switch (true) {
 								case ($txn_currency == $comp_currency && $credit_currency == $comp_currency):
 									// case 1: no fx rates involved
+									if ($transferCharge > 0) {
+										if ($credit_amount + $transferCharge > $txn_stm_amount) {
+											$errMsg = "Error in Transfer: The Sum of Credit amount $txn_currency $credit_amount and the Transfer Charge $txn_currency $transferCharge cannot exceed the Transaction Amount $txn_currency $txn_stm_amount!";
+										}
+									}
+										
 									break;
 								case ($txn_currency == $comp_currency && $credit_currency != $comp_currency):
 									$credit_rate = $txn_amount / $credit_amount;
@@ -441,7 +449,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 									if ($msg) {
 										display_notification($msg);
 									} else {
-										$credit_rate = $txn_amount * $txn_rate / $credit_amount;
+										$credit_rate =  $txn_amount * $txn_rate / $credit_amount;
 										// calc credit_rate
 										list($txn_rate, $msg) = manageExchangeRate($date, $credit_currency, $credit_rate);
 										if ($msg) {
@@ -449,6 +457,11 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 										}
 									}
 									break;
+							}
+
+							if ($errMsg) {
+								display_error( $errMsg);
+								break;
 							}
 
 							$reference = $Refs->get_next(ST_BANKTRANSFER);
@@ -851,15 +864,10 @@ if (1) {
 							}
 						}
 
-						$qe = get_quick_entry($QEId);
-						$qe_usage = $qe['usage'];
-
 						// display drop downs
-						$qe_text = quick_entry_types_list_row($label = null, $name = "partnerId_QEType_$tid", $QEType, $submit_on_change = true);
-						$qe_text .= quick_entries_list($name = "partnerId_$tid", $selected_id = $QEId, $type = $QEType, $submit_on_change = true);
-						$qe_text .= $qe_usage;
-
-						label_row("", $qe_text);
+						quick_entry_types_list_row($label = "Quick Entry Types", $name = "partnerId_QEType_$tid", $QEType, $submit_on_change = true);
+						quick_entries_list_row($label = "Quick Entry Description", $name = "partnerId_$tid", $selected_id = $QEId, $type = $QEType, $submit_on_change = true);
+						label_row("Quick Entry Usage", get_quick_entry($QEId)['usage']);
 						break;	
 
 					case PRT_TRANSFER:
@@ -880,7 +888,7 @@ if (1) {
 
 					case PRT_MANUAL_SETTLEMENT:
 						hidden("partnerId_$tid", 'manual');
-						journal_types_list_cells("Transaction Type:","partnerId_manualTransType_$tid");
+						label_row(_("Transaction Type:"), journal_types_list(null, "partnerId_manualTransType_$tid"));
 						//function text_input($name, $value=null, $size='', $max='', $title='', $params='')
 						label_row(_("Transaction Reference:"),  text_input("partnerId_manualTransRef_$tid"));
 
