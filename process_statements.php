@@ -404,7 +404,12 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 
 							// determine fx rates to avoid fx gain/loss for currency convertions
 							$credit_currency = $credit_account['bank_curr_code'];
+							
 							$txn_amount = $trz['transactionAmount'];
+							// debit amount is sum of txn amount and charge
+							if ($transferCharge > 0) 
+								$txn_amount = $txn_amount - $transferCharge;
+
 							$txn_rate = null;
 							$credit_rate = null;
 							switch (true) {
