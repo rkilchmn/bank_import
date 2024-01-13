@@ -545,6 +545,10 @@ if (1) {
 	if (!isset($_POST['TransToDate']))
 		$_POST['TransToDate'] = end_month(Today());
 
+	if (!isset($_POST['accountFilter'])) 
+		$_POST['accountFilter'] = 0;
+
+	label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = false));
 	date_cells(_("From:"), 'TransAfterDate', '', null, -30);
 	date_cells(_("To:"), 'TransToDate', '', null, 1);
 	label_cells(_("Status:"), array_selector('statusFilter', $_POST['statusFilter'], array(0 => 'Unsettled', 1 => 'Settled', 255 => 'All')));
@@ -562,13 +566,20 @@ if (1) {
 
 	$sql = "
 	SELECT t.*, s.account smt_account, s.currency from " . TB_PREF . "bi_transactions t
-    	    LEFT JOIN " . TB_PREF . "bi_statements as s ON t.smt_id = s.id
+    	    LEFT JOIN " . TB_PREF . "bi_statements as s ON t.smt_id = s.id";
+
+	$sql .= "
 	WHERE
 	    t.valueTimestamp >= " . db_escape(date2sql($_POST['TransAfterDate'])) . " AND
 	    t.valueTimestamp <=  " . db_escape(date2sql($_POST['TransToDate']));
 
 	if ($_POST['statusFilter'] == 1) { // even status 1 can be unprocessed when voided, but if user wants settled, status can only be 1 	
 		$sql .= " AND t.status = " . db_escape($_POST['statusFilter']);
+	}
+
+	if ($_POST['accountFilter']) {
+		$bankAccount = get_bank_account($_POST['accountFilter']);
+		$sql .= " AND s.account = " . db_escape($bankAccount['bank_account_number']);
 	}
 
 	$sql .= " ORDER BY t.valueTimestamp ASC";

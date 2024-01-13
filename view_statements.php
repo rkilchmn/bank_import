@@ -83,6 +83,10 @@ if (!isset($_POST['TransAfterDate']))
 if (!isset($_POST['TransToDate']))
 	$_POST['TransToDate'] = end_month(Today());
 
+if (!isset($_POST['accountFilter'])) 
+    $_POST['accountFilter'] = 0;
+
+label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = false));
 date_cells(_("From:"), 'TransAfterDate', '', null, -30);
 date_cells(_("To:"), 'TransToDate', '', null, 1);
 
@@ -93,12 +97,14 @@ end_table();
 
 //------------------------------------------------------------------------------------------------
 // this is data display table
+$bankAccount = get_bank_account($_POST['accountFilter']);
+
 $sql = " SELECT id, bank, account, currency, startBalance, endBalance, smtDate, number, seq, statementId,
     (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id) as numTrans,
     (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id and status <> 0) as numProc
 	FROM
 	".TB_PREF."bi_statements smt WHERE smtDate >= ".db_escape(date2sql($_POST['TransAfterDate']))." AND smtDate <= ".
-	db_escape(date2sql($_POST['TransToDate']))." ORDER BY smtDate ASC";
+	db_escape(date2sql($_POST['TransToDate']))." AND account = " . db_escape($bankAccount['bank_account_number']) . " ORDER BY smtDate ASC";
 
 $res=db_query($sql, 'unable to get transactions data');
 
