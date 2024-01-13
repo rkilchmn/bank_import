@@ -16,6 +16,30 @@ define('DELIM', ':');
 // internal date format, example '2023-12-16'
 define('TARGET_DATE_FORMAT', 'Y-m-d');
 
+function journal_types_list( $name, $value=null, $submit_on_change=false)
+{
+	global $systypes_array;
+
+	$html = "";
+
+	$items = $systypes_array;
+
+	// exclude quotes, orders and dimensions
+	foreach (array(ST_PURCHORDER, ST_SALESORDER, ST_DIMENSION, ST_SALESQUOTE, ST_LOCTRANSFER) as $excl)
+			unset($items[$excl]);
+	
+	$html .= array_selector($name, $value, $items, 
+		array( 
+			'spec_option'=> _("All"),
+			'spec_id' => -1,
+			'select_submit'=> $submit_on_change,
+			'async' => false
+			)
+	);
+
+	return $html;
+}
+
 function get_transaction($tid)
 {
 	$sql = "
