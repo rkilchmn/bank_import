@@ -10,8 +10,14 @@ define( 'PRT_MANUAL_SETTLEMENT', 'MA');
 define( 'DC_CREDIT', 'C');
 define( 'DC_DEBIT', 'D');
 
-// Define a constant to DELIMt values
+// Define a constant to DELIMit values
 define('DELIM', ':');
+
+// prefined defined constants/keywords -> helps to identify typos
+define('DEF', 'default'); // DEFAULT is recognized as keyword in PHP
+define('CONDITION', 'condition');
+define('ACTION', 'action');
+define('DESCRIPTION', 'description');
 
 // internal date format, example '2023-12-16'
 define('TARGET_DATE_FORMAT', 'Y-m-d');

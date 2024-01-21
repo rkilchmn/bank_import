@@ -4,11 +4,11 @@
 	
 // include constants
 $path_to_root = "../..";
-include_once($path_to_root . "/modules/bank_import/includes/dbs_csv_config.php");
+include_once($path_to_root . "/modules/bank_import/includes/ocbc_csv_config.php");
 
-//we need to interpret the file and generate a new statement for each day of transactions
+	//we need to interpret the file and generate a new statement for each day of transactions
 
-class dbs_csv_parser extends parser
+class ocbc_csv_parser extends parser
 {
 	private function excuteTransactionLogic($transactionLogic, $trz)
 	{
@@ -40,18 +40,18 @@ class dbs_csv_parser extends parser
 		// keep statements in an array, hashed by statement-id
 		$smts = array();
 		$sid = substr($static_data['filename'], 0, 32);
-		
+
 		if (empty($sid))
 			return; // error
 
 		// Use regular expression to extract the date
 		$date = '';
-		if (preg_match(DBS_CSV_CONFIG::MATCH_STATEMENT_DATE_FILENAME, $static_data['filename'], $matches)) {
-			$date =  $this->convertDate( DBS_CSV_CONFIG::STATEMENT_DATE_FORMAT, TARGET_DATE_FORMAT, $matches[1]);
+		if (preg_match(OCBC_CSV_CONFIG::MATCH_STATEMENT_DATE_FILENAME, $static_data['filename'], $matches)) {
+			$date =  $this->convertDate( OCBC_CSV_CONFIG::STATEMENT_DATE_FORMAT, TARGET_DATE_FORMAT, $matches[0]);
 		}
 
 		$smts[$sid] = new statement;
-		$smts[$sid]->bank = "DBS";
+		$smts[$sid]->bank = "OCBC";
 		$smts[$sid]->account = $static_data['account'];
 		$smts[$sid]->currency = $static_data['currency'];
 		$smts[$sid]->startBalance = 0; // will be updated while processing transactions
@@ -90,29 +90,29 @@ class dbs_csv_parser extends parser
 			if ($lineid == 1) {
 				$smts[$sid]->startBalance = $rowData['Opening Balance'];
 			} else {
-				$smts[$sid]->endBalance = $rowData['Running Balance'];
+				$smts[$sid]->endBalance = $rowData['Closing Book Balance'];
 			}
 
 			//add transaction data
 			$trz = new transaction;
-			$trz->valueTimestamp = $this->convertDate( DBS_CSV_CONFIG::FILE_DATE_FORMAT, TARGET_DATE_FORMAT, $rowData['Value Date']);
-			$trz->entryTimestamp = $this->convertDate( DBS_CSV_CONFIG::FILE_DATE_FORMAT, TARGET_DATE_FORMAT, $rowData['Transaction Date']);
+			$trz->valueTimestamp = $this->convertDate( OCBC_CSV_CONFIG::FILE_DATE_FORMAT, TARGET_DATE_FORMAT, $rowData['Statement Value Date']);
+			$trz->entryTimestamp = $this->convertDate( OCBC_CSV_CONFIG::FILE_DATE_FORMAT, TARGET_DATE_FORMAT, $rowData['Statement Date']);
 			$trz->account = $smts[$sid]->account;
-			$trz->transactionTitle1 = trim($rowData['Transaction Detail']);
-			$trz->accountName1 =  trim($rowData['Beneficiary Name']);
-			$trz->transactionType = $rowData['Transaction Code'];
-			$trz->transactionCode = $sid . DELIM . $lineid . DELIM . $rowData['Transaction Code'];
+			$trz->transactionTitle1 = trim($rowData['Statement Details Info']);
+			$trz->accountName1 =  trim($rowData['Ref For Account Owner'] . " " . $rowData['Our Ref']);
+			$trz->transactionType = $rowData['Transaction Type Code'];
+			$trz->transactionCode = $sid . DELIM . $lineid . DELIM . $rowData['Transaction Type Code'];
 
 			// debit/credit
-			if ($rowData['Debit']) {
+			if ($rowData['Debit Amount']) {
 				$trz->transactionDC = DC_DEBIT;
-				$trz->transactionAmount = $rowData['Debit'];
-			} elseif ($rowData['Credit']) {
+				$trz->transactionAmount = $rowData['Debit Amount'];
+			} elseif ($rowData['Credit Amount']) {
 				$trz->transactionDC = DC_CREDIT;
-				$trz->transactionAmount = $rowData['Credit'];
+				$trz->transactionAmount = $rowData['Credit Amount'];
 			}
 
-			$accountingRules =  DBS_CSV_CONFIG::getAccountingRules();
+			$accountingRules =  OCBC_CSV_CONFIG::getAccountingRules();
 
 			// determine posting logic based on config
 			if (isset($accountingRules[$trz->transactionType])) {
