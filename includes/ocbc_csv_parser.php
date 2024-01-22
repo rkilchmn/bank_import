@@ -37,8 +37,6 @@ class ocbc_csv_parser extends parser
 		// Extract field names from the first line
 		$header = str_getcsv(array_shift($lines));
 
-		// keep statements in an array, hashed by statement-id
-		$smts = array();
 		$sid = substr($static_data['filename'], 0, 32);
 
 		if (empty($sid))
@@ -50,16 +48,16 @@ class ocbc_csv_parser extends parser
 			$date =  $this->convertDate( OCBC_CSV_CONFIG::STATEMENT_DATE_FORMAT, TARGET_DATE_FORMAT, $matches[0]);
 		}
 
-		$smts[$sid] = new statement;
-		$smts[$sid]->bank = "OCBC";
-		$smts[$sid]->account = $static_data['account'];
-		$smts[$sid]->currency = $static_data['currency'];
-		$smts[$sid]->startBalance = 0; // will be updated while processing transactions
-		$smts[$sid]->endBalance = 0; // will be updated while processing transactions
-		$smts[$sid]->timestamp = $date;
-		$smts[$sid]->number = '00000';
-		$smts[$sid]->sequence = '0';
-		$smts[$sid]->statementId = $sid;
+		$smt = new statement;
+		$smt->bank = "OCBC";
+		$smt->account = $static_data['account'];
+		$smt->currency = $static_data['currency'];
+		$smt->startBalance = 0; // will be updated while processing transactions
+		$smt->endBalance = 0; // will be updated while processing transactions
+		$smt->timestamp = $date;
+		$smt->number = '00000';
+		$smt->sequence = '0';
+		$smt->statementId = $sid;
 
 		$lineid = 0;
 
@@ -88,16 +86,16 @@ class ocbc_csv_parser extends parser
 
 			// updating statement opening/closing balance
 			if ($lineid == 1) {
-				$smts[$sid]->startBalance = $rowData['Opening Balance'];
+				$smt->startBalance = $rowData['Opening Balance'];
 			} else {
-				$smts[$sid]->endBalance = $rowData['Closing Book Balance'];
+				$smt->endBalance = $rowData['Closing Book Balance'];
 			}
 
 			//add transaction data
 			$trz = new transaction;
 			$trz->valueTimestamp = $this->convertDate( OCBC_CSV_CONFIG::FILE_DATE_FORMAT, TARGET_DATE_FORMAT, $rowData['Statement Value Date']);
 			$trz->entryTimestamp = $this->convertDate( OCBC_CSV_CONFIG::FILE_DATE_FORMAT, TARGET_DATE_FORMAT, $rowData['Statement Date']);
-			$trz->account = $smts[$sid]->account;
+			$trz->account = $smt->account;
 			$trz->transactionTitle1 = trim($rowData['Statement Details Info']);
 			$trz->accountName1 =  trim($rowData['Ref For Account Owner'] . " " . $rowData['Our Ref']);
 			$trz->transactionType = $rowData['Transaction Type Code'];
@@ -136,10 +134,10 @@ class ocbc_csv_parser extends parser
 					$this->excuteTransactionLogic($transactionLogic, $trz);
 				}
 			}
-			$smts[$sid]->addTransaction($trz);
+			$smt->addTransaction($trz);
 		}
 
 		// return statement data
-		return $smts;
+		return $smt;
 	}
 }

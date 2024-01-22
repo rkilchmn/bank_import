@@ -18,23 +18,21 @@ class native_csv_parser extends parser {
 			$f[$i] = str_replace(',', '', $f[$i]);
 		}
 
-		//keep statements in an array, hashed by statement-id
-		$smts = array();
 		$sid = trim($f[8]);
 
 		if (empty($sid))
 			return; // error
 
-		$smts[$sid] = new statement;
-		$smts[$sid]->bank = trim($f[0]);
-		$smts[$sid]->account = trim($f[1]);
-		$smts[$sid]->currency = trim($f[2]);
-		$smts[$sid]->startBalance = trim($f[3]);
-		$smts[$sid]->endBalance = trim($f[4]);
-		$smts[$sid]->timestamp = trim($f[5]);
-		$smts[$sid]->number = trim($f[6]);
-		$smts[$sid]->sequence = trim($f[7]);
-		$smts[$sid]->statementId = $sid;
+		$smt = new statement;
+		$smt->bank = trim($f[0]);
+		$smt->account = trim($f[1]);
+		$smt->currency = trim($f[2]);
+		$smt->startBalance = trim($f[3]);
+		$smt->endBalance = trim($f[4]);
+		$smt->timestamp = trim($f[5]);
+		$smt->number = trim($f[6]);
+		$smt->sequence = trim($f[7]);
+		$smt->statementId = $sid;
 
 		//next line is transaction fields header so ignore it
 		array_shift($lines);
@@ -80,11 +78,11 @@ class native_csv_parser extends parser {
 
 			// enrichment
 			$trz->transactionType = 'TRF';
-			$smts[$sid]->addTransaction($trz);
+			$smt->addTransaction($trz);
 
 			// generate unique transactionCode if empty
 			if(empty($trz->transactionCode)) {
-				$trz->transactionCode = $smts[$sid]->bank . ":" . $smts[$sid]->statementId . ":" . $lineid;
+				$trz->transactionCode = $smt->bank . ":" . $smt->statementId . ":" . $lineid;
 			}
 
 			if ($transactionChargeAmount > 0) {
@@ -98,11 +96,11 @@ class native_csv_parser extends parser {
 				$trz_chg->account = "";
 				$trz_chg->accountName1 = "";
 
-				$smts[$sid]->addTransaction($trz_chg);
+				$smt->addTransaction($trz_chg);
 			}
 		}
 		//time to return
-		return $smts;
+		return $smt;
 	}
 
 }
