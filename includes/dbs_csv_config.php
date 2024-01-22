@@ -127,24 +127,24 @@ class DBS_CSV_CONFIG
                             $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
                         },
                     ],
-                    DC_CREDIT => [
-                        CONDITION => function ($trz) {
-                            if (stristr($trz->transactionTitle1, 'IRAS')) {
-                                return 'IRAS';
-                            } else {
-                                return DEF;
-                            }
+                ],
+                DC_CREDIT => [
+                    CONDITION => function ($trz) {
+                        if (stristr($trz->transactionTitle1, 'IRAS')) {
+                            return 'IRAS';
+                        } else {
+                            return DEF;
+                        }
+                    },
+                    ACTION => [
+                        'IRAS' =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_QUICK_ENTRY . DELIM . QE_DEPOSIT . DELIM . self::QE_DEPOSIT_IRAS_REF;
                         },
-                        ACTION => [
-                            'IRAS' =>
-                            function ($trz) {
-                                $trz->transactionCodeDesc = PRT_QUICK_ENTRY . DELIM . QE_DEPOSIT . DELIM . self::QE_DEPOSIT_IRAS_REF;
-                            },
-                            DEF =>
-                            function ($trz) {
-                                $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
-                            },
-                        ],
+                        DEF =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
+                        },
                     ],
                 ],
             ],

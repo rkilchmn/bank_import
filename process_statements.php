@@ -22,8 +22,6 @@ include_once($path_to_root . "/includes/ui/items_cart.inc");
 include_once($path_to_root . "/includes/data_checks.inc");
 include_once($path_to_root . "/gl/includes/db/gl_db_banking.inc"); // contains add_bank_trans
 include_once($path_to_root . "/gl/includes/db/gl_db_bank_accounts.inc"); // contains get_quick_entries
-include_once($path_to_root . "/purchasing/includes/db/suppliers_db.inc"); // contains get_suppliers_search_sql
-
 include_once($path_to_root . "/modules/bank_import/includes/includes.inc");
 include_once($path_to_root . "/modules/bank_import/includes/pdata.inc");
 

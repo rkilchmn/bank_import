@@ -1,5 +1,7 @@
 <?php
 
+include_once($path_to_root . "/purchasing/includes/db/suppliers_db.inc"); // contains get_suppliers_search_sql
+
 //RK define processing types - better term than Partner Type
 define( 'PRT_SUPPLIER', 'SP');
 define( 'PRT_CUSTOMER', 'CU');
@@ -458,4 +460,15 @@ function qe_to_cart(&$cart, $id, $base, $type, $descr = '')
 		}
 	}
 	return $bank_amount;
+}
+
+function search_suppliers($supplier) {
+	$sql = get_suppliers_search_sql($supplier);
+
+	$res = db_query($sql, "could not get supplier");
+
+	while($supplier = db_fetch($res))
+		$results[] = $supplier;
+
+	return $results;
 }
