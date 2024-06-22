@@ -44,12 +44,22 @@ class DBS_CSV_CONFIG
                 ],
                 DC_DEBIT => [
                     CONDITION => function ($trz) {
-                        return stristr($trz->transactionTitle1, 'ZERO1 PTE LTD') !== false ? 'Zero1' : DEF;
+                        if (stristr($trz->transactionTitle1, 'ZERO1 PTE LTD')) {
+                            return 'Zero1';
+                        } elseif (stristr($trz->transactionTitle1, 'EXABYTESSG*')) {
+                            return 'Exabytes.SG';
+                        } else {
+                            return DEF;
+                        }
                     },
                     ACTION => [
                         'Zero1' =>
                         function ($trz) {
                             $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'Zero1';
+                        },
+                        'Exabytes.SG' =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'Exabytes.SG';
                         },
                         DEF =>
                         function ($trz) {
@@ -139,7 +149,8 @@ class DBS_CSV_CONFIG
                     ACTION => [
                         'IRAS' =>
                         function ($trz) {
-                            $trz->transactionCodeDesc = PRT_QUICK_ENTRY . DELIM . QE_DEPOSIT . DELIM . self::QE_DEPOSIT_IRAS_REF;
+                            // $trz->transactionCodeDesc = PRT_QUICK_ENTRY . DELIM . QE_DEPOSIT . DELIM . self::QE_DEPOSIT_IRAS_REF;
+                            $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
                         },
                         DEF =>
                         function ($trz) {
