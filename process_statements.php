@@ -872,7 +872,7 @@ if (1) {
 						$transferAccountId = get_post("transferAccountId_$tid");
 						$transferAmount = get_post("transferAmount_$tid");
 						$transferCharge = get_post("transferCharge_$tid");
-						if (empty($transferAccountId)) { // initial proposal
+						if (empty($transferAccountId) && (splitFAIntstruction($trz['transactionCodeDesc'])[0]) == PRT_TRANSFER) { // initial proposal
 							$acct_number = splitFAIntstruction($trz['transactionCodeDesc'])[1];
 							$transferAmount = splitFAIntstruction($trz['transactionCodeDesc'])[2];
 							$transferCharge = splitFAIntstruction($trz['transactionCodeDesc'])[3];
