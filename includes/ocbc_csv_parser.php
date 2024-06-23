@@ -102,12 +102,16 @@ class ocbc_csv_parser extends parser
 			$trz->transactionCode = $sid . DELIM . $lineid . DELIM . $rowData['Transaction Type Code'];
 
 			// debit/credit
-			if ($rowData['Debit Amount']) {
+			if (isset($rowData['Debit Amount']) && is_numeric($rowData['Debit Amount']) && $rowData['Debit Amount'] > 0) {
 				$trz->transactionDC = DC_DEBIT;
 				$trz->transactionAmount = $rowData['Debit Amount'];
-			} elseif ($rowData['Credit Amount']) {
+			} elseif (isset($rowData['Credit Amount']) && is_numeric($rowData['Credit Amount']) && $rowData['Credit Amount'] > 0) {
 				$trz->transactionDC = DC_CREDIT;
 				$trz->transactionAmount = $rowData['Credit Amount'];
+			} else {
+				// Handle the case where neither amount is valid
+				$trz->transactionDC = null;
+				$trz->transactionAmount = 0.00;
 			}
 
 			$accountingRules =  OCBC_CSV_CONFIG::getAccountingRules();

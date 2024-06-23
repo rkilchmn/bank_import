@@ -27,16 +27,16 @@ class OCBC_CSV_CONFIG
                 DESCRIPTION => "FAST TRANSFER",
                 DC_DEBIT => [
                     CONDITION => function ($trz) {
-                        if (stristr($trz->transactionTitle1, 'PayNow')) {
-                            return 'SUP';
+                        if (stristr($trz->transactionTitle1, 'CPF')) {
+                            return 'CPF';
                         } else {
                             return DEF;
                         }
                     },
                     ACTION => [
-                        'SUP' =>
+                        'CPF' =>
                         function ($trz) {
-                            $trz->transactionCodeDesc = PRT_SUPPLIER;
+                            $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'CPF';
                         },
                         DEF =>
                         function ($trz) {
