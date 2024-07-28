@@ -584,6 +584,11 @@ if (1) {
 	//------------------------------------------------------------------------------------------------
 	// this is data display table
 
+	// intitialize
+	if (!isset($_POST['filterStatementId'])) {
+		$_POST['filterStatementId'] = STATEMENT_LIST_ALL;
+	}
+
 	$sql = "
 	SELECT t.*, s.account smt_account, s.currency, s.statementId from " . TB_PREF . "bi_transactions t
     	    LEFT JOIN " . TB_PREF . "bi_statements as s ON t.smt_id = s.id";
