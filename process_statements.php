@@ -6,6 +6,9 @@ define('ACTION_PROCESS_BULK', 'Bulk Process Selected');
 define('ACTION_PROCESS_SELECT_ALL', 'Select All');
 define('ACTION_PROCESS_DESELECT_ALL', 'Un-select All');
 
+// when bank account list item needs to be selected
+define('BANK_LIST_SELECT', '< please select >');
+
 // prefix before memo for bank charges line 
 define('PREFIX_CHARGES', 'Total Charges: ');
 
@@ -388,73 +391,81 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							break;
 
 						case ($_POST['processingType'][$k] == PRT_TRANSFER):
+							$errMsg = "";
+
 							// prepare transfer details
 							$debit_account = get_bank_account_by_number($trz['account']);
 							$credit_account = get_bank_account(get_post("transferAccountId_$tid"));
-							$credit_amount = get_post("transferAmount_$tid");
-							$transferCharge = get_post("transferCharge_$tid");
+							if (isset($credit_account) && ($credit_account)) {
+							
+								$credit_amount = get_post("transferAmount_$tid");
+								$transferCharge = get_post("transferCharge_$tid");
 
-							// case comp	txn		credit	
-							// 1	SGD		SGD		SGD		
-							// 2	SGD		SGD		!SGD	
-							// 3	SGD		!SGD 	SGD		
-							// 4	SGD		!SGD	!SGD	
+								// case comp	txn		credit	
+								// 1	SGD		SGD		SGD		
+								// 2	SGD		SGD		!SGD	
+								// 3	SGD		!SGD 	SGD		
+								// 4	SGD		!SGD	!SGD	
 
-							// determine fx rates to avoid fx gain/loss for currency convertions
-							$credit_currency = $credit_account['bank_curr_code'];
+								// determine fx rates to avoid fx gain/loss for currency convertions
+								$credit_currency = $credit_account['bank_curr_code'];
 
-							$txn_stm_amount = $trz['transactionAmount'];
-							$txn_amount = $txn_stm_amount;
-							// amount debited from source bank account is sum of txn amount and charge
-							if ($transferCharge > 0) 
-								$txn_amount = $txn_amount - $transferCharge;
+								$txn_smt_amount = $trz['transactionAmount'];
+								$txn_amount = $txn_smt_amount;
+								// amount debited from source bank account is sum of txn amount and charge
+								if ($transferCharge > 0) 
+									$txn_amount = $txn_amount - $transferCharge;
 
-							$txn_rate = null;
-							$credit_rate = null;
-							$errMsg = "";
-							switch (true) {
-								case ($txn_currency == $comp_currency && $credit_currency == $comp_currency):
-									// case 1: no fx rates involved
-									if ($transferCharge > 0) {
-										if ($credit_amount + $transferCharge > $txn_stm_amount) {
-											$errMsg = "Error in Transfer: The Sum of Credit amount $txn_currency $credit_amount and the Transfer Charge $txn_currency $transferCharge cannot exceed the Transaction Amount $txn_currency $txn_stm_amount!";
+								$txn_rate = null;
+								$credit_rate = null;
+								
+								switch (true) {
+									case ($txn_currency == $comp_currency && $credit_currency == $comp_currency):
+										// case 1: no fx rates involved
+										if ($transferCharge > 0) {
+											if ($credit_amount + $transferCharge > $txn_smt_amount) {
+												$errMsg = "Error in Transfer: The Sum of Credit amount $txn_currency $credit_amount and the Transfer Charge $txn_currency $transferCharge cannot exceed the Transaction Amount $txn_currency $txn_smt_amount!";
+											}
 										}
-									}
-										
-									break;
-								case ($txn_currency == $comp_currency && $credit_currency != $comp_currency):
-									$credit_rate = $txn_amount / $credit_amount;
-									// case 2: calc credit_rate
-									list($txn_rate, $msg) = manageExchangeRate($date, $credit_currency, $credit_rate);
-									if ($msg) {
-										display_notification($msg);
-									}
-									break;
-
-								case ($txn_currency != $comp_currency && $credit_currency == $comp_currency):
-									$txn_rate = $credit_amount / $txn_amount;
-									// case 3: calc txn rate
-									list($txn_rate, $msg) = manageExchangeRate($date, $txn_currency, $txn_rate);
-									if ($msg) {
-										display_notification($msg);
-									}
-									break;
-
-								case ($txn_currency != $comp_currency && $credit_currency != $comp_currency):
-									// case 4:
-									// retrive txn_rate
-									list($txn_rate, $msg) = manageExchangeRate($date, $txn_currency, "");
-									if ($msg) {
-										display_notification($msg);
-									} else {
-										$credit_rate =  $txn_amount * $txn_rate / $credit_amount;
-										// calc credit_rate
+											
+										break;
+									case ($txn_currency == $comp_currency && $credit_currency != $comp_currency):
+										$credit_rate = $txn_amount / $credit_amount;
+										// case 2: calc credit_rate
 										list($txn_rate, $msg) = manageExchangeRate($date, $credit_currency, $credit_rate);
 										if ($msg) {
 											display_notification($msg);
 										}
-									}
-									break;
+										break;
+
+									case ($txn_currency != $comp_currency && $credit_currency == $comp_currency):
+										$txn_rate = $credit_amount / $txn_amount;
+										// case 3: calc txn rate
+										list($txn_rate, $msg) = manageExchangeRate($date, $txn_currency, $txn_rate);
+										if ($msg) {
+											display_notification($msg);
+										}
+										break;
+
+									case ($txn_currency != $comp_currency && $credit_currency != $comp_currency):
+										// case 4:
+										// retrive txn_rate
+										list($txn_rate, $msg) = manageExchangeRate($date, $txn_currency, "");
+										if ($msg) {
+											display_notification($msg);
+										} else {
+											$credit_rate =  $txn_amount * $txn_rate / $credit_amount;
+											// calc credit_rate
+											list($txn_rate, $msg) = manageExchangeRate($date, $credit_currency, $credit_rate);
+											if ($msg) {
+												display_notification($msg);
+											}
+										}
+										break;
+								}
+							}
+							else {
+								$errMsg = "Select valid bank account";
 							}
 
 							if ($errMsg) {
@@ -581,7 +592,7 @@ if (1) {
 	// this is data display table
 
 	$sql = "
-	SELECT t.*, s.account smt_account, s.currency from " . TB_PREF . "bi_transactions t
+	SELECT t.*, s.account smt_account, s.currency, s.statementId from " . TB_PREF . "bi_transactions t
     	    LEFT JOIN " . TB_PREF . "bi_statements as s ON t.smt_id = s.id";
 
 	$sql .= "
@@ -666,6 +677,7 @@ if (1) {
 			if ($trz['transactionType'] != 'COM') {
 				$transactionDC = $trz['transactionDC'];
 				$smt_account = $trz['smt_account'];
+				$smt_id = $trz['statementId'];
 				$valueTimestamp = $trz['valueTimestamp'];
 				$bankAccount = $trz['account'];
 				$bankAccountName = $trz['accountName'];
@@ -729,7 +741,8 @@ if (1) {
 		label_row("Trans Date:", sql2date($valueTimestamp), "width='25%' class='label'");
 		label_row("Trans Type:", ($transactionDC == 'C') ? "Credit" : "Debit");
 		label_row("Account:", $bankAccount);
-		label_row("Counterparty:", $bankAccountName);
+		// label_row("Counterparty:", $bankAccountName);
+		label_row("StatementID:", $smt_id);
 		label_row("Amount/Charge(s):", $amount . ' / ' . $charge . " (" . $currency . ")");
 		label_row("Trans Title:", $transactionTitle);
 		end_table();
@@ -745,7 +758,7 @@ if (1) {
 			// the transaction is settled, we can display full details
 			label_row("Status:", "<b>Transaction is settled!</b>", "width='25%' class='label'");
 			label_row("Type:", $systypes_array[$fa_trz_type] . " ($fa_trz_type)");
-			label_row("Reference (Trans. No):", $fa_trz_ref . "(" . get_trans_view_str($fa_trz_type, $fa_trz_no) . ") " . get_gl_view_str($fa_trz_type, $fa_trz_no) . trans_editor_link($fa_trz_type, $fa_trz_no) . pager_link(_("Delete"), "/admin/void_transaction.php?trans_no=" . $fa_trz_no . "&filterType=" . $fa_trz_type, ICON_DELETE));
+			label_row("Reference (Trans. No):", $fa_trz_ref . "(" . get_trans_view_str($fa_trz_type, $fa_trz_no) . ") " . get_gl_view_str($fa_trz_type, $fa_trz_no) . trans_editor_link($fa_trz_type, $fa_trz_no) . viewer_link(_("Void"), "/admin/void_transaction.php?trans_no=" . $fa_trz_no . "&filterType=" . $fa_trz_type, '','', ICON_DELETE));
 
 			switch ($trz['fa_trans_type']) {
 				case ST_SUPPAYMENT:
@@ -876,17 +889,26 @@ if (1) {
 							$acct_number = splitFAIntstruction($trz['transactionCodeDesc'])[1];
 							$transferAmount = splitFAIntstruction($trz['transactionCodeDesc'])[2];
 							$transferCharge = splitFAIntstruction($trz['transactionCodeDesc'])[3];
-							$transferAccountId = get_bank_account_by_number($acct_number)['id'];
+							if (isset( $acct_number) && ($acct_number != '')) {
+								$transferAccountId = get_bank_account_by_number($acct_number)['id'];
+							}
 						}
 
-						label_row(_("Credit to Account:"), bank_accounts_list($name = "transferAccountId_$tid", $selected_id = $transferAccountId, $submit_on_change = false, $spec_option = false));
+						$specOption = "False";
+						// show special text to select target account
+						if (!($transferAccountId)) {
+							$specOption = BANK_LIST_SELECT;
+							$transferAccountId = $specOption;
+						}
+
+						label_row(_("Credit to Account:"), bank_accounts_list($name = "transferAccountId_$tid", $selected_id = $transferAccountId, $submit_on_change = false, $spec_option = $specOption));
 						label_row(_("Amount:"),  text_input("transferAmount_$tid", $transferAmount));
 						label_row(_("Bank Charge:"),  text_input("transferCharge_$tid", $transferCharge));
 						break;
 
 					case PRT_MANUAL_SETTLEMENT:
 						hidden("partnerId_$tid", 'manual');
-						label_row(_("Transaction Type:"), journal_types_list(null, "partnerId_manualTransType_$tid"));
+						label_row(_("Transaction Type:"), journal_types_list( "partnerId_manualTransType_$tid", null));
 						//function text_input($name, $value=null, $size='', $max='', $title='', $params='')
 						label_row(_("Transaction Reference:"),  text_input("partnerId_manualTransRef_$tid"));
 
