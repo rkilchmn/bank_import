@@ -9,6 +9,9 @@ define('ACTION_PROCESS_DESELECT_ALL', 'Un-select All');
 // when bank account list item needs to be selected
 define('BANK_LIST_SELECT', '< please select >');
 
+// all option for statement
+define('STATEMENT_LIST_ALL', 'All');
+
 // prefix before memo for bank charges line 
 define('PREFIX_CHARGES', 'Total Charges: ');
 
@@ -128,7 +131,6 @@ function manageExchangeRate($date, $txn_currency, $rate)
 
 	return array($rate, $msg);
 }
-
 
 if ($SysPrefs->use_popup_windows)
 	$js .= get_js_open_window(800, 500);
@@ -575,15 +577,6 @@ if (1) {
 	if (!isset($_POST['accountFilter'])) 
 		$_POST['accountFilter'] = 0;
 
-	label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = false));
-	date_cells(_("From:"), 'TransAfterDate', '', null, -30);
-	date_cells(_("To:"), 'TransToDate', '', null, 1);
-	label_cells(_("Status:"), array_selector('statusFilter', $_POST['statusFilter'], array(0 => 'Unsettled', 1 => 'Settled', 255 => 'All')));
-
-	submit_cells('RefreshInquiry', _("Search"), '', _('Refresh Inquiry'), 'default');
-	end_row();
-	end_table();
-
 	//if (!@$_GET['popup'])
 	//	end_form();
 
@@ -609,11 +602,20 @@ if (1) {
 		$sql .= " AND s.account = " . db_escape($bankAccount['bank_account_number']);
 	}
 
+	if (!empty($_POST['filterStatementId'] && ($_POST['filterStatementId'] != STATEMENT_LIST_ALL))) {
+		$sql .= " AND s.statementId = " . db_escape($_POST['filterStatementId']);
+	}
+
 	$sql .= " ORDER BY t.valueTimestamp ASC";
+
+	// echo $sql;
+
 	$res = db_query($sql, 'unable to get transactions data');
 
-
 	//load data
+	$unique_statement_ids = array();
+	$unique_statement_ids[STATEMENT_LIST_ALL] = STATEMENT_LIST_ALL;
+
 	$trzs = array();
 	while ($myrow = db_fetch($res)) {
 		// translate from DB to logical field names
@@ -654,8 +656,26 @@ if (1) {
 		if (!isset($trzs[$trz_code])) {
 			$trzs[$trz_code] = array();
 		}
+
+		// Add unique statementId to the list
+		if (!in_array($myrow['statementId'], $unique_statement_ids)) {
+			$unique_statement_ids[$myrow['statementId']] = $myrow['statementId'];
+		}
+
 		$trzs[$trz_code][] = $myrow;
 	}
+
+	label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = false));
+	date_cells(_("From:"), 'TransAfterDate', '', null, -30);
+	date_cells(_("To:"), 'TransToDate', '', null, 1);
+
+	label_cells(_("Statement:"), array_selector('filterStatementId', $_POST['filterStatementId'], $unique_statement_ids));
+
+	label_cells(_("Status:"), array_selector('statusFilter', $_POST['statusFilter'], array(0 => 'Unsettled', 1 => 'Settled', 255 => 'All')));
+
+	submit_cells('RefreshInquiry', _("Search"), '', _('Refresh Inquiry'), 'default');
+	end_row();
+	end_table();
 
 	start_table(TABLESTYLE, "width='100%'");
 
