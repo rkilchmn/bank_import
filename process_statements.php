@@ -41,48 +41,6 @@ $js = "";
 // if ($use_date_picker)
 // 		$js .= get_js_date_picker();
 
-function retrieve_txn_by_reference($type, $reference, $date)
-{
-	$sql = get_sql_for_journal_inquiry($type, $date, $date, $reference, '', true);
-
-	$result = db_query($sql, 'unable to get transactions data');
-
-	if (db_num_rows($result) == 1) {
-		return db_fetch_assoc($result);
-	} else
-		return null;
-}
-
-function getQEType($transType)
-{
-	switch ($transType) {
-		case ST_BANKDEPOSIT:
-			return QE_DEPOSIT;
-		case ST_BANKPAYMENT:
-			return QE_PAYMENT;
-		case ST_JOURNAL:
-			return QE_JOURNAL;
-	}
-}
-
-function getTransType($QEType)
-{
-	switch ($QEType) {
-		case QE_DEPOSIT:
-			return ST_BANKDEPOSIT;
-		case QE_PAYMENT:
-			return ST_BANKPAYMENT;
-		case QE_JOURNAL:
-			return ST_JOURNAL;
-	}
-}
-
-function getTransTypeDescription($transType)
-{
-	global $systypes_array;
-	return $systypes_array[$transType];
-}
-
 function splitFAIntstruction($transactionCodeDesc)
 {
 	$components = explode(':', $transactionCodeDesc);
@@ -263,7 +221,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//update trans with payment_id details
 							// RK use reference which does not change when is modified (trans_id is changing and link brakes)
 							if ($payment_id) {
-								update_transactions($tid, $_cids, $status = 1, $payment_id, ST_SUPPAYMENT, $reference);
+								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, ST_SUPPAYMENT, $reference);
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_SUPPLIER, $partner_detail_id = ANY_NUMERIC, $account = $trz['account']);
 								// RK
 								// display_notification('Supplier payment processed');
@@ -304,7 +262,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//display_notification("payment_id = $payment_id");
 							//update trans with payment_id details
 							if ($payment_id) {
-								update_transactions($tid, $_cids, $status = 1, $payment_id, ST_BANKDEPOSIT, $reference);
+								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, ST_BANKDEPOSIT, $reference);
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_CUSTOMER, $partner_detail_id = $_POST["partnerDetailId_$k"], $account = $trz['account']);
 								//RK display_notification('Customer deposit processed');
 								$count[PRT_CUSTOMER]++;
@@ -363,7 +321,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 										);
 
 										if ($trans[1]) {
-											update_transactions($tid, $_cids, $status = 1, $trans[1], $cart_type, $cart->reference);
+											update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans[1], $cart_type, $cart->reference);
 											commit_transaction();
 											$count[PRT_QUICK_ENTRY]++;
 										}
@@ -384,7 +342,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 									$trans_no = write_journal_entries($cart);
 
 									if ($trans_no) {
-										update_transactions($tid, $_cids, $status = 1, $trans_no, $cart_type, $cart->reference);
+										update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans_no, $cart_type, $cart->reference);
 										$count[PRT_QUICK_ENTRY]++;
 									}
 									break;
@@ -480,7 +438,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							$trans_no = add_bank_transfer($debit_account['id'], $credit_account['id'], $date, user_numeric($txn_amount), $reference, $trz['transactionTitle'], "", "", user_numeric($transferCharge), user_numeric($credit_amount));
 
 							if ($trans_no) {
-								update_transactions($tid, $_cids, $status = 1, $trans_no, ST_BANKTRANSFER, $reference);
+								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans_no, ST_BANKTRANSFER, $reference);
 								$count[PRT_TRANSFER]++;
 							}
 							break;
@@ -502,7 +460,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 											display_notification($msg);
 										}
 									}
-									update_transactions($tid, $_cids, $status = 1, $txn['trans_no'], $transType, $transRef);
+									update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $txn['trans_no'], $transType, $transRef);
 									$count[PRT_MANUAL_SETTLEMENT]++;
 								} else {
 									display_error("Invalid Type '$transType', reference '$transRef' or date '$transDate' for Manual Transaction");
@@ -566,7 +524,7 @@ if (1) {
 	start_table(TABLESTYLE_NOBORDER);
 	start_row();
 	if (!isset($_POST['statusFilter']))
-		$_POST['statusFilter'] = 0;
+		$_POST['statusFilter'] = STATUS_UNPROCESSED;
 	if (!isset($_POST['TransAfterDate']))
 		$_POST['TransAfterDate'] = begin_month(Today());
 	//RK $_POST['TransAfterDate'] = '01/01/2012';
@@ -584,99 +542,23 @@ if (1) {
 	//------------------------------------------------------------------------------------------------
 	// this is data display table
 
-	// intitialize
-	if (!isset($_POST['filterStatementId'])) {
-		$_POST['filterStatementId'] = STATEMENT_LIST_ALL;
+	if (!isset($_POST['filterSmtId'])) {
+		$_POST['filterSmtId'] = ''; // filter to all statements
 	}
 
-	$sql = "
-	SELECT t.*, s.account smt_account, s.currency, s.statementId from " . TB_PREF . "bi_transactions t
-    	    LEFT JOIN " . TB_PREF . "bi_statements as s ON t.smt_id = s.id";
+	list( $trzs, $statements) = getStatementTransactions(
+		$_POST['accountFilter'], $_POST['filterSmtId'] , $_POST['TransAfterDate'], $_POST['TransToDate'], $_POST['statusFilter']);
 
-	$sql .= "
-	WHERE
-	    t.valueTimestamp >= " . db_escape(date2sql($_POST['TransAfterDate'])) . " AND
-	    t.valueTimestamp <=  " . db_escape(date2sql($_POST['TransToDate']));
-
-	if ($_POST['statusFilter'] == 1) { // even status 1 can be unprocessed when voided, but if user wants settled, status can only be 1 	
-		$sql .= " AND t.status = " . db_escape($_POST['statusFilter']);
-	}
-
-	if ($_POST['accountFilter']) {
-		$bankAccount = get_bank_account($_POST['accountFilter']);
-		$sql .= " AND s.account = " . db_escape($bankAccount['bank_account_number']);
-	}
-
-	if (!empty($_POST['filterStatementId'] && ($_POST['filterStatementId'] != STATEMENT_LIST_ALL))) {
-		$sql .= " AND s.statementId = " . db_escape($_POST['filterStatementId']);
-	}
-
-	$sql .= " ORDER BY t.valueTimestamp ASC";
-
-	// echo $sql;
-
-	$res = db_query($sql, 'unable to get transactions data');
-
-	//load data
-	$unique_statement_ids = array();
-	$unique_statement_ids[STATEMENT_LIST_ALL] = STATEMENT_LIST_ALL;
-
-	$trzs = array();
-	while ($myrow = db_fetch($res)) {
-		// translate from DB to logical field names
-		$myrow['fa_trz_ref'] = $myrow['matchinfo']; //RK using matchinfo for FA reference
-		$myrow['fa_trz_type'] = $myrow['fa_trans_type'];
-		$myrow['fa_trz_no'] = $myrow['fa_trans_no'];
-		// determine trans_no by reference (logic form journal_inquiry.php)
-		$is_voided = false;
-		// trans no can change due to voiding and reprocessing, reference remains stable
-		if (isset($myrow['fa_trz_ref']) && ($myrow['fa_trz_ref'])) {
-			// determine transaction no
-			$txn = retrieve_txn_by_reference($myrow['fa_trz_type'], $myrow['fa_trz_ref'], sql2date($myrow['valueTimestamp']));
-			if (isset($txn) && ($myrow['fa_trz_ref'] == $txn['reference'])) {
-				$myrow['fa_trz_no'] = $txn['trans_no']; 
-				$myrow['status'] = 1; // update status to processed
-			}
-			else {
-				// not found anymore -> voided
-				$is_voided = get_voided_entry($myrow['fa_trz_type'], $myrow['fa_trz_no']);
-				if ($is_voided) {
-					$myrow['status'] = 0; // update status to unprocessed
-				}
-			}
-		}
-
-		// if user wanted to select all settled we can drop the status where status is 0 or voided
-		if (($_POST['statusFilter'] == 1) && ($myrow['status'] == 0)) {
-			continue;
-		}
-
-		// if user wanted to select all unsettled we can drop the status where status is 1 
-		if (($_POST['statusFilter'] == 0) && ($myrow['status'] == 1)) {
-			continue;
-		}
-		
-		// generate unique key
-		$trz_code =  $myrow['smt_account'] . $myrow['smt_id'] . $myrow['transactionCode'];
-		if (!isset($trzs[$trz_code])) {
-			$trzs[$trz_code] = array();
-		}
-
-		// Add unique statementId to the list
-		if (!in_array($myrow['statementId'], $unique_statement_ids)) {
-			$unique_statement_ids[$myrow['statementId']] = $myrow['statementId'];
-		}
-
-		$trzs[$trz_code][] = $myrow;
-	}
+	// $statements[STATEMENT_LIST_ALL] = STATEMENT_LIST_ALL;
+	$statements[''] = STATEMENT_LIST_ALL;
 
 	label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = false));
 	date_cells(_("From:"), 'TransAfterDate', '', null, -30);
 	date_cells(_("To:"), 'TransToDate', '', null, 1);
 
-	label_cells(_("Statement:"), array_selector('filterStatementId', $_POST['filterStatementId'], $unique_statement_ids));
+	label_cells(_("Statement:"), array_selector('filterSmtId', $_POST['filterSmtId'], $statements));
 
-	label_cells(_("Status:"), array_selector('statusFilter', $_POST['statusFilter'], array(0 => 'Unsettled', 1 => 'Settled', 255 => 'All')));
+	label_cells(_("Status:"), array_selector('statusFilter', $_POST['statusFilter'], array(STATUS_UNPROCESSED => 'not processed', STATUS_PROCESSED => 'processed', 255 => 'All')));
 
 	submit_cells('RefreshInquiry', _("Search"), '', _('Refresh Inquiry'), 'default');
 	end_row();
@@ -778,7 +660,7 @@ if (1) {
 
 		//now display stuff: forms and information
 		switch ($status) {
-			case 1:
+			case STATUS_PROCESSED:
 
 			// the transaction is settled, we can display full details
 			label_row("Status:", "<b>Transaction is settled!</b>", "width='25%' class='label'");
@@ -810,7 +692,7 @@ if (1) {
 
 				break;
 				
-			case 0:
+			case STATUS_UNPROCESSED:
 				//transaction not settled
 				// this is a new transaction, but not matched by routine so just display some forms
 

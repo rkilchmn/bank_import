@@ -24,6 +24,10 @@ define('DESCRIPTION', 'description');
 // internal date format, example '2023-12-16'
 define('TARGET_DATE_FORMAT', 'Y-m-d');
 
+// processing status
+define( 'STATUS_UNPROCESSED', '0');
+define( 'STATUS_PROCESSED', '1');
+
 function journal_types_list( $name, $value=null, $submit_on_change=false)
 {
 	global $systypes_array;
@@ -471,4 +475,162 @@ function search_suppliers($supplier) {
 		$results[] = $supplier;
 
 	return $results;
+}
+
+function transactionProcessed( $fa_trz_ref, $fa_trz_no, $fa_trz_type, $valueTimestamp) {
+	$is_voided = false;
+	// trans no can change due to voiding and reprocessing, reference remains stable
+	if (isset($fa_trz_ref) && ($fa_trz_ref)) {
+		// determine transaction no
+		$txn = retrieve_txn_by_reference($fa_trz_type, $fa_trz_ref, sql2date($valueTimestamp));
+		if (isset($txn) && ($fa_trz_ref == $txn['reference'])) {
+			return $txn['trans_no']; // processed, return trans no
+		}
+		else {
+			// not found anymore -> voided
+			$is_voided = get_voided_entry($fa_trz_type, $fa_trz_no);
+			if ($is_voided) {
+				return ''; // not processed
+			}
+			else {
+				return ''; // ?????
+			}
+		}
+	}
+}
+
+function sqlSelectControl( $sql, $numSelect) {
+	if ($numSelect == 0) { 
+		$sql .= " WHERE ";
+	}
+	if ($numSelect >= 1) { 
+		$sql .= " AND "; 
+	}
+	$numSelect++;
+	return array($sql,$numSelect);
+}
+
+function getStatementTransactions($accountFilter, $filterSmtId, $TransAfterDate, $TransToDate, $statusFilter ){
+
+	$sql = "
+	SELECT t.*, s.id, s.account smt_account, s.currency, s.statementId from " . TB_PREF . "bi_transactions t
+    	    LEFT JOIN " . TB_PREF . "bi_statements as s ON t.smt_id = s.id ";
+
+	$numSelect = 0;
+
+	if ($TransAfterDate && $TransToDate) {
+		list ($sql, $numSelect) = sqlSelectControl( $sql, $numSelect);
+		$sql .= " t.valueTimestamp >= " . db_escape(date2sql($TransAfterDate)) . 
+				" AND t.valueTimestamp <= " . db_escape(date2sql($TransToDate));
+	}
+
+	if ($statusFilter == STATUS_PROCESSED) { // even status 1 can be unprocessed when voided, but if user wants settled, status can only be 1 	
+		list ($sql, $numSelect) = sqlSelectControl( $sql, $numSelect);
+		$sql .= " t.status = " . db_escape($statusFilter);
+	}
+
+	if ($accountFilter) {
+		list ($sql, $numSelect) = sqlSelectControl( $sql, $numSelect);
+		$bankAccount = get_bank_account($accountFilter);
+		$sql .= " s.account = " . db_escape($bankAccount['bank_account_number']);
+	}
+
+	if ($filterSmtId) {
+		list ($sql, $numSelect) = sqlSelectControl( $sql, $numSelect);
+		$sql .= " s.id = " . db_escape($filterSmtId);
+	}
+
+	$sql .= " ORDER BY t.valueTimestamp ASC";
+
+	// echo $sql;
+
+	$res = db_query($sql, 'unable to get transactions data');
+
+	// load data
+	$statements = array();
+
+	$transactions = array();
+	while ($myrow = db_fetch($res)) {
+		// translate from DB to logical field names
+		$myrow['fa_trz_ref'] = $myrow['matchinfo']; //RK using matchinfo for FA reference
+		$myrow['fa_trz_type'] = $myrow['fa_trans_type'];
+		$myrow['fa_trz_no'] = $myrow['fa_trans_no'];
+
+		// determine trans_no by reference (logic form journal_inquiry.php)
+		$myrow['fa_trz_no'] = transactionProcessed( $myrow['fa_trz_ref'], $myrow['fa_trz_no'], $myrow['fa_trz_type'], $myrow['valueTimestamp']);
+		if ($myrow['fa_trz_no']) {
+			$myrow['status'] = STATUS_PROCESSED; // update status to processed	
+		}
+		else {
+			$myrow['status'] = STATUS_UNPROCESSED; // update status to unprocessed
+		}
+
+		// if user wanted to select all settled we can drop the status where status is 0 or voided
+		if (($statusFilter == STATUS_PROCESSED) && ($myrow['status'] == STATUS_UNPROCESSED)) {
+			continue;
+		}
+
+		// if user wanted to select all unsettled we can drop the status where status is 1 
+		if (($statusFilter == STATUS_UNPROCESSED) && ($myrow['status'] == STATUS_PROCESSED)) {
+			continue;
+		}
+		
+		// generate unique key
+		$tran_code =  $myrow['smt_account'] . $myrow['smt_id'] . $myrow['transactionCode'];
+		if (!isset($transactions[$tran_code])) {
+			$transactions[$tran_code] = array();
+		}
+
+		// Add unique statementId to the list
+		if (!in_array($myrow['statementId'], $statements)) {
+			// $statements[$myrow['statementId']] = $myrow['statementId'];
+			$statements[$myrow['id']] = $myrow['statementId'];
+		}
+
+		$transactions[$tran_code][] = $myrow;
+	}
+
+	return array($transactions, $statements);
+}
+
+function retrieve_txn_by_reference($type, $reference, $date)
+{
+	$sql = get_sql_for_journal_inquiry($type, $date, $date, $reference, '', true);
+
+	$result = db_query($sql, 'unable to get transactions data');
+
+	if (db_num_rows($result) == 1) {
+		return db_fetch_assoc($result);
+	} else
+		return null;
+}
+
+function getQEType($transType)
+{
+	switch ($transType) {
+		case ST_BANKDEPOSIT:
+			return QE_DEPOSIT;
+		case ST_BANKPAYMENT:
+			return QE_PAYMENT;
+		case ST_JOURNAL:
+			return QE_JOURNAL;
+	}
+}
+
+function getTransType($QEType)
+{
+	switch ($QEType) {
+		case QE_DEPOSIT:
+			return ST_BANKDEPOSIT;
+		case QE_PAYMENT:
+			return ST_BANKPAYMENT;
+		case QE_JOURNAL:
+			return ST_JOURNAL;
+	}
+}
+
+function getTransTypeDescription($transType)
+{
+	global $systypes_array;
+	return $systypes_array[$transType];
 }

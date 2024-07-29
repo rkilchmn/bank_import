@@ -17,9 +17,9 @@ include_once($path_to_root . "/includes/session.inc");
 include_once($path_to_root . "/includes/ui/ui_input.inc");
 include_once($path_to_root . "/includes/ui/ui_lists.inc");
 include_once($path_to_root . "/includes/ui/ui_globals.inc");
-
-//include_once($path_to_root . "/modules/bank_import/includes/includes.php");
 include_once($path_to_root . "/includes/data_checks.inc");
+
+include_once($path_to_root . "/modules/bank_import/includes/includes.inc");
 
 
 $js = "";
@@ -49,14 +49,11 @@ if (isset($_POST['delete'])) {
 		$v = $_POST['delete'][$smt_id];
         if ($v = "delete") {
             // check if no processed transactions
-            $sql = " SELECT
-            (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id and status <> 0) as numProc
-            FROM
-            ".TB_PREF."bi_statements smt WHERE id=".$smt_id;
+            list( $processedTransactions, $statements) = getStatementTransactions(
+                '', $smt_id , '', '', STATUS_PROCESSED);
+            $numProcessed = count($processedTransactions);
 
-            $res=db_query($sql, 'unable to get transactions data');
-            $myrow = db_fetch($res);
-            if ($myrow['numProc'] == 0) {
+            if ($numProcessed == 0) {
                 // delete all transactions and statement
                 $sql = "DELETE FROM ".TB_PREF."bi_transactions WHERE smt_id=".$smt_id;
                 $res=db_query($sql, 'unable to delete transactions data');
@@ -100,9 +97,8 @@ end_table();
 $bankAccount = get_bank_account($_POST['accountFilter']);
 
 $sql = " SELECT id, bank, account, currency, startBalance, endBalance, smtDate, number, seq, statementId,
-    (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id) as numTrans,
-    (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id and status <> 0) as numProc
-	FROM
+    (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id) as numTrans
+    FROM
 	".TB_PREF."bi_statements smt WHERE smtDate >= ".db_escape(date2sql($_POST['TransAfterDate']))." AND smtDate <= ".
 	db_escape(date2sql($_POST['TransToDate']))." AND account = " . db_escape($bankAccount['bank_account_number']) . " ORDER BY smtDate ASC";
 
@@ -112,6 +108,11 @@ div_start('doc_tbl');
 start_table(TABLESTYLE, "width='100%'");
 table_header(array("Bank", "Statement#", "Date", "Account(Currency)", "Start Balance", "End Balance", "Delta", "Transactions", "Processed", "Allow Delete"));
 while($myrow = db_fetch($res)) {
+    // get processed transactions
+    list( $processedTransactions, $statements) = getStatementTransactions(
+		$_POST['accountFilter'], $myrow['id'] , '', '', STATUS_PROCESSED);
+    $numProcessed = count($processedTransactions);
+
     start_row();
     echo "<td>". $myrow['bank'] . "</td>";
     echo "<td>" . $myrow['statementId']."</td>";
@@ -121,9 +122,9 @@ while($myrow = db_fetch($res)) {
     amount_cell($myrow['endBalance']);
     amount_cell($myrow['endBalance'] - $myrow['startBalance']);
     echo "<td>" . $myrow['numTrans'] . "</td>";
-    echo "<td>" . $myrow['numProc'] . "</td>";
+    echo "<td>" . $numProcessed . "</td>";
     echo "<td>";
-    if ($myrow['numProc'] == 0) {
+    if ($numProcessed == 0) {
          echo submit("delete[".$myrow['id']."]", _("Delete"), false, '', 'default');
     }
     echo"</td>";
