@@ -149,10 +149,10 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 					//display_notification('<pre>'.print_r($trz,true).'</pre>');
 
 					//check bank account
-					$smt_account = get_bank_account_by_number($trz['account']);
-					if (empty($smt_account)) {
+					$txn_account = get_bank_account_by_number($trz['account']);
+					if (empty($txn_account)) {
 						$Ajax->activate('doc_tbl');
-						display_error('the bank account <b>' . $trz['smt_account'] . '</b> is not defined in Bank Accounts');
+						display_error('the bank account <b>' . $trz['account'] . '</b> is not defined in Bank Accounts');
 						$error = 1;
 					}
 					//display_notification('<pre>'.print_r($ba,true).'</pre>');
@@ -183,7 +183,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 					//display_notification("processingType=".$_POST['processingType'][$k]);
 
 					$rate = null;
-					$txn_currency = $smt_account['bank_curr_code'];
+					$txn_currency = $txn_account['bank_curr_code'];
 					$date = sql2date($trz['valueTimestamp']);
 
 					switch (true) {
@@ -207,7 +207,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							$payment_id = write_supp_payment(
 								0, // new transaction
 								$_POST["partnerId_$k"],
-								$smt_account['id'],
+								$txn_account['id'],
 								sql2date($trz['valueTimestamp']),
 								$reference,
 								user_numeric($trz['transactionAmount']),
@@ -249,7 +249,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 								$trans_no = 0,
 								$customer_id = $_POST["partnerId_$k"],
 								$branch_id = $_POST["partnerDetailId_$k"],
-								$bank_account = $smt_account['id'],
+								$bank_account = $txn_account['id'],
 								$date_ = sql2date($trz['valueTimestamp']),
 								$reference,
 								user_numeric($trz['transactionAmount']),
@@ -308,7 +308,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 										$trans = write_bank_transaction(
 											$cart->trans_type,
 											$cart->order_id,
-											$smt_account['id'],
+											$txn_account['id'],
 											$cart,
 											sql2date($trz['valueTimestamp']),
 											PT_QUICKENTRY,

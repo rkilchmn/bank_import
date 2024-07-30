@@ -513,7 +513,7 @@ function sqlSelectControl( $sql, $numSelect) {
 function getStatementTransactions($accountFilter, $filterSmtId, $TransAfterDate, $TransToDate, $statusFilter ){
 
 	$sql = "
-	SELECT t.*, s.id, s.account smt_account, s.currency, s.statementId from " . TB_PREF . "bi_transactions t
+	SELECT t.*, s.id as smt_id, s.account smt_account, s.currency, s.statementId from " . TB_PREF . "bi_transactions t
     	    LEFT JOIN " . TB_PREF . "bi_statements as s ON t.smt_id = s.id ";
 
 	$numSelect = 0;
@@ -584,7 +584,7 @@ function getStatementTransactions($accountFilter, $filterSmtId, $TransAfterDate,
 		// Add unique statementId to the list
 		if (!in_array($myrow['statementId'], $statements)) {
 			// $statements[$myrow['statementId']] = $myrow['statementId'];
-			$statements[$myrow['id']] = $myrow['statementId'];
+			$statements[$myrow['smt_id']] = $myrow['statementId'];
 		}
 
 		$transactions[$tran_code][] = $myrow;
