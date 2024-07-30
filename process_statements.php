@@ -584,12 +584,12 @@ if (1) {
 			if ($trz['transactionType'] != 'COM') {
 				$transactionDC = $trz['transactionDC'];
 				$smt_account = $trz['smt_account'];
-				$smt_id = $trz['statementId'];
+				$smt_statementId = $trz['statementId'];
 				$valueTimestamp = $trz['valueTimestamp'];
 				$bankAccount = $trz['account'];
 				$bankAccountName = $trz['accountName'];
 				$transactionTitle = $trz['transactionTitle'];
-				$currency = $trz['currency'];
+				$smt_currency = $trz['smt_currency'];
 				$status = $trz['status'];
 				$tid = $trz['id'];
 				$has_trz = 1;
@@ -614,7 +614,7 @@ if (1) {
 					$bankAccount = $trz['account'];
 					$bankAccountName = $trz['accountName'];
 					$transactionTitle = $trz['transactionTitle'];
-					$currency = $trz['currency'];
+					$smt_currency = $trz['smt_currency'];
 					$status = $trz['status'];
 					$tid = $trz['id']; // tid is from charge
 					$amount += $trz['transactionAmount'];
@@ -649,8 +649,8 @@ if (1) {
 		label_row("Trans Type:", ($transactionDC == 'C') ? "Credit" : "Debit");
 		label_row("Account:", $bankAccount);
 		// label_row("Counterparty:", $bankAccountName);
-		label_row("StatementID:", $smt_id);
-		label_row("Amount/Charge(s):", $amount . ' / ' . $charge . " (" . $currency . ")");
+		label_row("StatementID:", $smt_statementId);
+		label_row("Amount/Charge(s):", $amount . ' / ' . $charge . " (" . $smt_currency . ")");
 		label_row("Trans Title:", $transactionTitle);
 		end_table();
 
