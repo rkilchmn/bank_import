@@ -113,7 +113,15 @@ while($myrow = db_fetch($res)) {
 		$_POST['accountFilter'], $myrow['id'] , '', '', STATUS_PROCESSED);
     $numProcessed = count($processedTransactions);
 
-    start_row();
+    // highlight row if partially processed
+    if (($numProcessed > 0) && ($numProcessed < $myrow['numTrans'])) {
+        $param = "class='overduebg'";
+    }
+    else {
+        $param = false;    
+    }
+
+    start_row( $param);
     echo "<td>". $myrow['bank'] . "</td>";
     echo "<td>" . $myrow['statementId']."</td>";
     echo "<td>" . $myrow['smtDate'] . "</td>";
