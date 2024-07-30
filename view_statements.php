@@ -110,7 +110,7 @@ table_header(array("Bank", "Statement#", "Date", "Account(Currency)", "Start Bal
 while($myrow = db_fetch($res)) {
     // get processed transactions
     list( $processedTransactions, $statements) = getStatementTransactions(
-		$_POST['accountFilter'], $myrow['smt_id'] , '', '', STATUS_PROCESSED);
+		$_POST['accountFilter'], $myrow['id'] , '', '', STATUS_PROCESSED);
     $numProcessed = count($processedTransactions);
 
     start_row();
