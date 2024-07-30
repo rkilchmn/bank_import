@@ -589,7 +589,6 @@ if (1) {
 				$bankAccount = $trz['account'];
 				$bankAccountName = $trz['accountName'];
 				$transactionTitle = $trz['transactionTitle'];
-				$smt_currency = $trz['smt_currency'];
 				$status = $trz['status'];
 				$tid = $trz['id'];
 				$has_trz = 1;
@@ -614,7 +613,6 @@ if (1) {
 					$bankAccount = $trz['account'];
 					$bankAccountName = $trz['accountName'];
 					$transactionTitle = $trz['transactionTitle'];
-					$smt_currency = $trz['smt_currency'];
 					$status = $trz['status'];
 					$tid = $trz['id']; // tid is from charge
 					$amount += $trz['transactionAmount'];
@@ -650,7 +648,7 @@ if (1) {
 		label_row("Account:", $bankAccount);
 		// label_row("Counterparty:", $bankAccountName);
 		label_row("StatementID:", $smt_statementId);
-		label_row("Amount/Charge(s):", $amount . ' / ' . $charge . " (" . $smt_currency . ")");
+		label_row("Amount/Charge(s):", $amount . ' / ' . $charge);
 		label_row("Trans Title:", $transactionTitle);
 		end_table();
 
