@@ -757,11 +757,11 @@ if (1) {
 						$QEType = get_post("partnerId_QEType_$tid");
 						$QEId = get_post("partnerId_$tid");
 						if (empty($QEType)) { // initial proposal
-							$QEType = splitFAIntstruction($trz['transactionCodeDesc'])[1];
-							$QEDescr = splitFAIntstruction($trz['transactionCodeDesc'])[2];
+							$QEType = splitFAIntstruction($transactionCodeDesc)[1];
+							$QEDescr = splitFAIntstruction($transactionCodeDesc)[2];
 
 							// lookup quick entries 
-							$qe = get_quick_entries(getQEType(splitFAIntstruction($trz['transactionCodeDesc'])[1]));
+							$qe = get_quick_entries(getQEType(splitFAIntstruction($transactionCodeDesc)[1]));
 							$results = $qe->fetch_all();
 
 							$first = "";
@@ -792,10 +792,10 @@ if (1) {
 						$transferAccountId = get_post("transferAccountId_$tid");
 						$transferAmount = get_post("transferAmount_$tid");
 						$transferCharge = get_post("transferCharge_$tid");
-						if (empty($transferAccountId) && (splitFAIntstruction($trz['transactionCodeDesc'])[0]) == PRT_TRANSFER) { // initial proposal
-							$acct_number = splitFAIntstruction($trz['transactionCodeDesc'])[1];
-							$transferAmount = splitFAIntstruction($trz['transactionCodeDesc'])[2];
-							$transferCharge = splitFAIntstruction($trz['transactionCodeDesc'])[3];
+						if (empty($transferAccountId) && (splitFAIntstruction($transactionCodeDesc)[0]) == PRT_TRANSFER) { // initial proposal
+							$acct_number = splitFAIntstruction($transactionCodeDesc)[1];
+							$transferAmount = splitFAIntstruction($transactionCodeDesc)[2];
+							$transferCharge = splitFAIntstruction($transactionCodeDesc)[3];
 							if (isset( $acct_number) && ($acct_number != '')) {
 								$transferAccountId = get_bank_account_by_number($acct_number)['id'];
 							}
