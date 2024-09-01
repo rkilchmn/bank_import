@@ -115,7 +115,10 @@ while($myrow = db_fetch($res)) {
 
     // highlight row if partially processed
     if (($numProcessed > 0) && ($numProcessed < $myrow['numTrans'])) {
-        $param = "class='overduebg'";
+        $param = "class='overduebg'"; // red
+    }
+    elseif (($numProcessed > 0) && ($numProcessed == $myrow['numTrans'])) {
+        $param = "class='settledbg'";  // green 
     }
     else {
         $param = false;    
