@@ -550,7 +550,9 @@ function getStatementTransactions($accountFilter, $filterSmtId, $TransAfterDate,
 	$statements = array();
 
 	$transactions = array();
+	$no = 0;
 	while ($myrow = db_fetch($res)) {
+		$no += 1;
 		// translate from DB to logical field names
 		$myrow['fa_trz_ref'] = $myrow['matchinfo']; //RK using matchinfo for FA reference
 		$myrow['fa_trz_type'] = $myrow['fa_trans_type'];
@@ -576,7 +578,7 @@ function getStatementTransactions($accountFilter, $filterSmtId, $TransAfterDate,
 		}
 		
 		// generate unique key
-		$tran_code =  $myrow['smt_account'] . $myrow['smt_id'] . $myrow['transactionCode'];
+		$tran_code =  $myrow['smt_account'] . $myrow['smt_id'] . $myrow['transactionCode'] . $no;
 		if (!isset($transactions[$tran_code])) {
 			$transactions[$tran_code] = array();
 		}
