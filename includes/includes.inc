@@ -636,20 +636,32 @@ function retrieve_txn_by_type_amount($type, $date, $amount)
 {
 	$transactions = retrieve_txn_by_type($type, $date);
 
+	$candidate = null;
+	$candidate_count = 0;
 	foreach ($transactions as $transaction) {
 		if ($transaction['trans_type'] == ST_BANKTRANSFER) {
 			$bank_trans_legs = get_bank_trans($transaction['trans_type'], $transaction['trans_no']);
 			foreach ($bank_trans_legs as $bank_trans_leg) {
 				if ($bank_trans_leg['amount'] == -$amount) {
-					return $transaction;
+					$candidate = $transaction;
+					$candidate_count += 1;
 				}
 			}
 		}
 		else {
 			if ($transaction['amount'] == $amount) {
-				return $transaction;
+				$candidate = $transaction;
+				$candidate_count += 1;
 			}
 		}
+	}
+
+	// if there is only one candidate, return it
+	if ($candidate_count == 1) {
+		return $candidate;
+	}
+	else {
+		return false;
 	}
 }
 
