@@ -1,6 +1,8 @@
 <?php
 
 include_once($path_to_root . "/purchasing/includes/db/suppliers_db.inc"); // contains get_suppliers_search_sql
+include_once($path_to_root . "/gl/includes/db/gl_db_bank_trans.inc"); // contains get_bank_trans
+
 
 //RK define processing types - better term than Partner Type
 define( 'PRT_SUPPLIER', 'SP');
@@ -98,6 +100,7 @@ function get_bank_account_by_number($account_number)
 }
 
 function my_write_customer_payment(
+	$trans_type,
 	$trans_no,
 	$customer_id,
 	$branch_id,
@@ -113,15 +116,20 @@ function my_write_customer_payment(
 ) {
 	global $Refs;
 
+	if (($trans_type != ST_CUSTPAYMENT) && ($trans_type != ST_BANKDEPOSIT)) {
+		display_error("Invalid transaction type");
+		return 0;
+	}
+
 	begin_transaction();
 	$args = func_get_args();
-	while (count($args) < 12) $args[] = 0;
+	while (count($args) < 13) $args[] = 0;
 	$args = (object)array_combine(array(
-		'trans_no', 'customer_id', 'branch_id', 'bank_account',
+		'trans_type','trans_no', 'customer_id', 'branch_id', 'bank_account',
 		'date_', 'ref', 'amount', 'discount', 'memo_', 'rate', 'charge', 'bank_amount'
 	), $args);
 	//hook_db_prewrite($args, ST_CUSTPAYMENT);
-	hook_db_prewrite($args, ST_BANKDEPOSIT);
+	hook_db_prewrite($args, $trans_type);
 
 	$company_record = get_company_prefs();
 
@@ -131,10 +139,10 @@ function my_write_customer_payment(
 		//void_gl_trans(ST_CUSTPAYMENT, $trans_no, true);
 		//void_cust_allocations(ST_CUSTPAYMENT, $trans_no, $date_);
 
-		delete_comments(ST_BANKDEPOSIT, $trans_no);
-		void_bank_trans(ST_BANKDEPOSIT, $trans_no, true);
-		void_gl_trans(ST_BANKDEPOSIT, $trans_no, true);
-		void_cust_allocations(ST_BANKDEPOSIT, $trans_no, $date_);
+		delete_comments($trans_type, $trans_no);
+		void_bank_trans($trans_type, $trans_no, true);
+		void_gl_trans($trans_type, $trans_no, true);
+		void_cust_allocations($trans_type, $trans_no, $date_);
 	}
 
 	$bank = get_bank_account($bank_account);
@@ -156,7 +164,7 @@ function my_write_customer_payment(
 	//	$date_, $ref, $amount, $discount);
 
 	$payment_no = write_customer_trans(
-		ST_BANKDEPOSIT,
+		$trans_type,
 		$trans_no,
 		$customer_id,
 		$branch_id,
@@ -175,7 +183,7 @@ function my_write_customer_payment(
 	//	$bank_gl_account, 0, 0, '', ($bank_amount - $charge),  $bank['bank_curr_code'], PT_CUSTOMER, $customer_id);
 
 	$total += add_gl_trans(
-		ST_BANKDEPOSIT,
+		$trans_type,
 		$payment_no,
 		$date_,
 		$bank_gl_account,
@@ -205,7 +213,7 @@ function my_write_customer_payment(
 		//	$debtors_account, 0, 0, -($discount + $amount), $customer_id,
 		//	"Cannot insert a GL transaction for the debtors account credit");
 		$total += add_gl_trans_customer(
-			ST_BANKDEPOSIT,
+			$trans_type,
 			$payment_no,
 			$date_,
 			$debtors_account,
@@ -224,7 +232,7 @@ function my_write_customer_payment(
 		//	"Cannot insert a GL transaction for the payment discount debit");
 
 		$total += add_gl_trans_customer(
-			ST_BANKDEPOSIT,
+			$trans_type,
 			$payment_no,
 			$date_,
 			$discount_account,
@@ -242,7 +250,7 @@ function my_write_customer_payment(
 		//$total += add_gl_trans(ST_CUSTPAYMENT, $payment_no, $date_,	$charge_act, 0, 0, '', 
 		//	$charge, $bank['bank_curr_code'], PT_CUSTOMER,  $customer_id);
 		$total += add_gl_trans(
-			ST_BANKDEPOSIT,
+			$trans_type,
 			$payment_no,
 			$date_,
 			$charge_act,
@@ -263,7 +271,7 @@ function my_write_customer_payment(
 		//add_gl_trans(ST_CUSTPAYMENT, $payment_no, $date_,	$variance_act, 0, 0, '',
 		//	-$total, null, PT_CUSTOMER,  $customer_id);
 		add_gl_trans(
-			ST_BANKDEPOSIT,
+			$trans_type,
 			$payment_no,
 			$date_,
 			$variance_act,
@@ -282,7 +290,7 @@ function my_write_customer_payment(
 	//	$date_, $bank_amount - $charge, PT_CUSTOMER, $customer_id);
 
 	add_bank_trans(
-		ST_BANKDEPOSIT,
+		$trans_type,
 		$payment_no,
 		$bank_account,
 		$ref,
@@ -293,15 +301,15 @@ function my_write_customer_payment(
 	);
 
 	//add_comments(ST_CUSTPAYMENT, $payment_no, $date_, $memo_);
-	add_comments(ST_BANKDEPOSIT, $payment_no, $date_, $memo_);
+	add_comments($trans_type, $payment_no, $date_, $memo_);
 
 	//SC: that would be the change!!!
 	//$Refs->save(ST_CUSTPAYMENT, $payment_no, $ref);
-	$Refs->save(ST_BANKDEPOSIT, $payment_no, $ref);
+	$Refs->save($trans_type, $payment_no, $ref);
 
 	$args->trans_no = $payment_no;
 	//hook_db_postwrite($args, ST_CUSTPAYMENT);
-	hook_db_postwrite($args, ST_BANKDEPOSIT);
+	hook_db_postwrite($args, $trans_type);
 	commit_transaction();
 
 	return $payment_no;
@@ -605,6 +613,44 @@ function retrieve_txn_by_reference($type, $reference, $date)
 		return db_fetch_assoc($result);
 	} else
 		return null;
+}
+
+function retrieve_txn_by_type($type, $date)
+{
+	$sql = get_sql_for_journal_inquiry($type, $date, $date, '', '', true);
+
+	// echo $sql;
+
+	$result = db_query($sql, 'unable to get transactions data');
+
+	if ($result) {
+		while ($row = db_fetch($result)) {
+			$rows[] = $row; // Add each row to the array
+		}
+		return $rows; // Return the array of rows
+	} else
+		return null;
+}
+
+function retrieve_txn_by_type_amount($type, $date, $amount)
+{
+	$transactions = retrieve_txn_by_type($type, $date);
+
+	foreach ($transactions as $transaction) {
+		if ($transaction['trans_type'] == ST_BANKTRANSFER) {
+			$bank_trans_legs = get_bank_trans($transaction['trans_type'], $transaction['trans_no']);
+			foreach ($bank_trans_legs as $bank_trans_leg) {
+				if ($bank_trans_leg['amount'] == -$amount) {
+					return $transaction;
+				}
+			}
+		}
+		else {
+			if ($transaction['amount'] == $amount) {
+				return $transaction;
+			}
+		}
+	}
 }
 
 function getQEType($transType)

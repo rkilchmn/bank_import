@@ -79,11 +79,16 @@ function manageExchangeRate($date, $txn_currency, $rate)
 	}
 
 	if ($update) {
+		$existingRate = get_date_exchange_rate($txn_currency, $date);
+		if ($existingRate) {
+			$msg = "Rate for date $date already exists: $existingRate";
+		} else {
 		if ($SysPrefs->xr_provider_authoritative) {
 			// store rate
-			add_exchange_rate($txn_currency, $date, $rate, $rate);
-		} else {
-			$msg = "Rate determined but not stored: to store rate set configuration in config.php to xr_provider_authoritative=true";
+				add_exchange_rate($txn_currency, $date, $rate, $rate);
+			} else {
+				$msg = "Rate determined but not stored: to store rate set configuration in config.php to xr_provider_authoritative=true";
+			}
 		}
 	}
 
@@ -221,7 +226,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//update trans with payment_id details
 							// RK use reference which does not change when is modified (trans_id is changing and link brakes)
 							if ($payment_id) {
-								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, ST_SUPPAYMENT, $reference);
+								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, $transType, $reference);
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_SUPPLIER, $partner_detail_id = ANY_NUMERIC, $account = $trz['account']);
 								// RK
 								// display_notification('Supplier payment processed');
@@ -237,7 +242,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 									display_notification($msg);
 								}
 							}
-							$transType = ST_BANKDEPOSIT;
+							$transType = ST_CUSTPAYMENT;
 							$reference = $Refs->get_next($transType);
 							if (!is_new_reference($reference, $transType)) {
 								display_error("Reference: $reference of Transaction Type: $transType already used.");
@@ -246,6 +251,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//RK } while (!is_new_reference($reference, ST_BANKDEPOSIT));
 
 							$payment_id = my_write_customer_payment(
+								$trans_type = $transType,
 								$trans_no = 0,
 								$customer_id = $_POST["partnerId_$k"],
 								$branch_id = $_POST["partnerDetailId_$k"],
@@ -262,7 +268,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//display_notification("payment_id = $payment_id");
 							//update trans with payment_id details
 							if ($payment_id) {
-								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, ST_BANKDEPOSIT, $reference);
+								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, $transType, $reference);
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_CUSTOMER, $partner_detail_id = $_POST["partnerDetailId_$k"], $account = $trz['account']);
 								//RK display_notification('Customer deposit processed');
 								$count[PRT_CUSTOMER]++;
@@ -433,12 +439,13 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 								break;
 							}
 
-							$reference = $Refs->get_next(ST_BANKTRANSFER);
+							$transType = ST_BANKTRANSFER;
+							$reference = $Refs->get_next($transType);
 							// add_bank_transfer( $from_account, $to_account, $date_, $amount, $ref, $memo_, $dim1, $dim2, $charge=0, $target_amount=0)
 							$trans_no = add_bank_transfer($debit_account['id'], $credit_account['id'], $date, user_numeric($txn_amount), $reference, $trz['transactionTitle'], "", "", user_numeric($transferCharge), user_numeric($credit_amount));
 
 							if ($trans_no) {
-								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans_no, ST_BANKTRANSFER, $reference);
+								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans_no, $transType, $reference);
 								$count[PRT_TRANSFER]++;
 							}
 							break;
@@ -813,9 +820,22 @@ if (1) {
 
 					case PRT_MANUAL_SETTLEMENT:
 						hidden("partnerId_$tid", 'manual');
-						label_row(_("Transaction Type:"), journal_types_list( "partnerId_manualTransType_$tid", null));
+						
 						//function text_input($name, $value=null, $size='', $max='', $title='', $params='')
-						label_row(_("Transaction Reference:"),  text_input("partnerId_manualTransRef_$tid"));
+						$manualTransRef = get_post("partnerId_manualTransRef_$tid");
+						$manualTransType = get_post("partnerId_manualTransType_$tid");
+						if (empty($manualTransRef) && ($manualTransType >= 0)) {
+							$trz = get_transaction($tid);
+							# try to find a transaction with the same type, date and amount
+							$matchingTrans = retrieve_txn_by_type_amount($manualTransType, sql2date($trz['valueTimestamp']),  ($trz['transactionDC'] == 'C') ? $trz['transactionAmount'] : -$trz['transactionAmount']);
+							if ($matchingTrans){
+								$manualTransRef = $matchingTrans['reference'];
+							}
+						}
+
+						label_row(_("Transaction Type:"), journal_types_list( "partnerId_manualTransType_$tid", null, true));
+						label_row(_("Transaction Reference:"),  text_input("partnerId_manualTransRef_$tid", $manualTransRef));
+						
 
 						break;
 				}
