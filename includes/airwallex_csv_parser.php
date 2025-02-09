@@ -94,6 +94,12 @@ class airwallex_csv_parser extends parser
 			$trz->entryTimestamp = $this->convertDate( AIRWALLEX_CSV_CONFIG::FILE_DATE_FORMAT, TARGET_DATE_FORMAT, $rowData['Created At']);
 			$trz->account = $smt->account;
 			$trz->transactionTitle1 = trim($rowData['Description']);
+			if (!empty(trim($rowData['Reference']))) {
+				$trz->transactionTitle1 .= "\nReference: " . trim($rowData['Reference']);
+			}
+			if (!empty(trim($rowData['Note to Self']))) {
+				$trz->transactionTitle1 .= "\nNote to Self: " . trim($rowData['Note to Self']);
+			}
 			$trz->accountName1 =  $rowData['Reference'];
 			$trz->transactionType = $rowData['Financial Transaction Type'];
 			$trz->transactionCode = $rowData['Transaction Id'];
