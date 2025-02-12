@@ -74,7 +74,7 @@ function get_transaction_lines($tid)
 	return db_fetch($result);
 }
 
-function update_transactions($tid, $cids, $status, $trans_no, $trans_type, $matchinfo)
+function update_transactions($tid, $cids, $status, $trans_no, $trans_date, $trans_type, $matchinfo)
 {
 	$cids[] = $tid;
 	$cids = implode(',', $cids);
@@ -84,6 +84,7 @@ function update_transactions($tid, $cids, $status, $trans_no, $trans_type, $matc
 	SET status=" . db_escape($status) . ",
 		matchinfo=" . db_escape($matchinfo) . ",
 	    fa_trans_no=" . db_escape($trans_no) . ",
+		valueTimestamp=" . db_escape(date2sql($trans_date)) . ",
 	    fa_trans_type=" . db_escape($trans_type) . "
 	    WHERE id in ($cids)";
 	//    display_notification($sql);
@@ -623,16 +624,16 @@ function retrieve_txn_by_type($type, $date)
 
 	$result = db_query($sql, 'unable to get transactions data');
 
+	$rows = array(); // initialize rows as empty
 	if ($result) {
 		while ($row = db_fetch($result)) {
 			$rows[] = $row; // Add each row to the array
 		}
-		return $rows; // Return the array of rows
-	} else
-		return null;
+	}
+	return $rows; // Return the array of rows
 }
 
-function retrieve_txn_by_type_amount($type, $date, $amount)
+function retrieve_txn_by_type_amount($type, $date, $amount, $bankAccount = '')
 {
 	$transactions = retrieve_txn_by_type($type, $date);
 
@@ -642,7 +643,7 @@ function retrieve_txn_by_type_amount($type, $date, $amount)
 		if ($transaction['trans_type'] == ST_BANKTRANSFER) {
 			$bank_trans_legs = get_bank_trans($transaction['trans_type'], $transaction['trans_no']);
 			foreach ($bank_trans_legs as $bank_trans_leg) {
-				if ($bank_trans_leg['amount'] == -$amount) {
+				if (($bank_trans_leg['amount'] == $amount) && ($bank_trans_leg['bank_account_number'] == $bankAccount)) {
 					$candidate = $transaction;
 					$candidate_count += 1;
 				}

@@ -226,7 +226,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//update trans with payment_id details
 							// RK use reference which does not change when is modified (trans_id is changing and link brakes)
 							if ($payment_id) {
-								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, $transType, $reference);
+								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, sql2date($trz['valueTimestamp']), $transType, $reference);
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_SUPPLIER, $partner_detail_id = ANY_NUMERIC, $account = $trz['account']);
 								// RK
 								// display_notification('Supplier payment processed');
@@ -268,7 +268,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//display_notification("payment_id = $payment_id");
 							//update trans with payment_id details
 							if ($payment_id) {
-								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, $transType, $reference);
+								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $payment_id, sql2date($trz['valueTimestamp']), $transType, $reference);
 								update_partner_data($partner_id = $_POST["partnerId_$k"], $partner_type = PT_CUSTOMER, $partner_detail_id = $_POST["partnerDetailId_$k"], $account = $trz['account']);
 								//RK display_notification('Customer deposit processed');
 								$count[PRT_CUSTOMER]++;
@@ -327,7 +327,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 										);
 
 										if ($trans[1]) {
-											update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans[1], $cart_type, $cart->reference);
+											update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans[1], sql2date($trz['valueTimestamp']), $cart_type, $cart->reference);
 											commit_transaction();
 											$count[PRT_QUICK_ENTRY]++;
 										}
@@ -348,7 +348,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 									$trans_no = write_journal_entries($cart);
 
 									if ($trans_no) {
-										update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans_no, $cart_type, $cart->reference);
+										update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans_no, $cart->tran_date, $cart_type, $cart->reference);
 										$count[PRT_QUICK_ENTRY]++;
 									}
 									break;
@@ -445,7 +445,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							$trans_no = add_bank_transfer($debit_account['id'], $credit_account['id'], $date, user_numeric($txn_amount), $reference, $trz['transactionTitle'], "", "", user_numeric($transferCharge), user_numeric($credit_amount));
 
 							if ($trans_no) {
-								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans_no, $transType, $reference);
+								update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $trans_no, $date, $transType, $reference);
 								$count[PRT_TRANSFER]++;
 							}
 							break;
@@ -455,19 +455,19 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							//RK display_notification("cids_array=" . print_r($_cids, true));
 							$transType = $_POST["partnerId_manualTransType_$k"];
 							$transRef = $_POST["partnerId_manualTransRef_$k"];
-							$transDate = sql2date($trz['valueTimestamp']);
-							if (isset($transType) && isset($transRef)) {
+							$transDate = $_POST["partnerId_manualTransDate_$k"];
+							if (isset($transType) && isset($transRef) && isset($transDate)) {
 								// check if transaction exists
 								$txn = retrieve_txn_by_reference($transType, $transRef, $transDate);
 								if (isset($txn) && ($transRef == $txn['reference'])) {
 									// set fx rate
-									if ($txn_currency != $comp_currency) {
+										if ($txn_currency != $comp_currency) {
 										list($rate, $msg) = manageExchangeRate($transDate, $txn_currency, "");
 										if ($msg) {
 											display_notification($msg);
 										}
 									}
-									update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $txn['trans_no'], $transType, $transRef);
+									update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $txn['trans_no'], $transDate, $transType, $transRef);
 									$count[PRT_MANUAL_SETTLEMENT]++;
 								} else {
 									display_error("Invalid Type '$transType', reference '$transRef' or date '$transDate' for Manual Transaction");
@@ -824,19 +824,25 @@ if (1) {
 						//function text_input($name, $value=null, $size='', $max='', $title='', $params='')
 						$manualTransRef = get_post("partnerId_manualTransRef_$tid");
 						$manualTransType = get_post("partnerId_manualTransType_$tid");
-						if (empty($manualTransRef) && ($manualTransType >= 0)) {
+						$manualTransDate = get_post("partnerId_manualTransDate_$tid");
+						
+						if (empty($manualTransDate)) {
+							$manualTransDate = sql2date($trz['valueTimestamp']);
+						}
+
+						if (empty($manualTransRef) && ($manualTransType >= 0) && $manualTransDate) {
 							$trz = get_transaction($tid);
 							# try to find a transaction with the same type, date and amount
-							$matchingTrans = retrieve_txn_by_type_amount($manualTransType, sql2date($trz['valueTimestamp']),  ($trz['transactionDC'] == 'C') ? $trz['transactionAmount'] : -$trz['transactionAmount']);
+							$matchingTrans = retrieve_txn_by_type_amount($manualTransType, $manualTransDate, ($trz['transactionDC'] == 'C') ? $trz['transactionAmount'] : -$trz['transactionAmount'], $bankAccount);
 							if ($matchingTrans){
 								$manualTransRef = $matchingTrans['reference'];
 							}
 						}
 
 						label_row(_("Transaction Type:"), journal_types_list( "partnerId_manualTransType_$tid", null, true));
+						label_row(_("Transaction Date:"),  text_input("partnerId_manualTransDate_$tid", $manualTransDate));
 						label_row(_("Transaction Reference:"),  text_input("partnerId_manualTransRef_$tid", $manualTransRef));
 						
-
 						break;
 				}
 
