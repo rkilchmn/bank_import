@@ -853,10 +853,7 @@ if (1) {
 
 				if (isset($_POST['action'])) {
 					if ($_POST['action'] == ACTION_PROCESS_SELECT_ALL) {
-						// not autoselct manual
-						if ($_POST['processingType'][$tid] != PRT_MANUAL_SETTLEMENT) {
-							$selected = true;
-						}
+						$selected = true;
 					}
 					if ($_POST['action'] == ACTION_PROCESS_DESELECT_ALL) {
 						$selected = false;
