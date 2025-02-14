@@ -82,12 +82,14 @@ function manageExchangeRate($date, $txn_currency, $rate)
 		$existingRate = get_date_exchange_rate($txn_currency, $date);
 		if ($existingRate) {
 			$msg = "Rate for date $date already exists: $existingRate";
+			$rate = $existingRate;
 		} else {
 		if ($SysPrefs->xr_provider_authoritative) {
 			// store rate
 				add_exchange_rate($txn_currency, $date, $rate, $rate);
 			} else {
 				$msg = "Rate determined but not stored: to store rate set configuration in config.php to xr_provider_authoritative=true";
+				$rate = '';
 			}
 		}
 	}
@@ -366,6 +368,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							
 								$credit_amount = get_post("transferAmount_$tid");
 								$transferCharge = get_post("transferCharge_$tid");
+								$forceFXrate = get_post("forceFXrate_$tid");
 
 								// case comp	txn		credit	
 								// 1	SGD		SGD		SGD		
@@ -383,7 +386,8 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 									$txn_amount = $txn_amount - $transferCharge;
 
 								$txn_rate = null;
-								$credit_rate = null;
+								$calc_fxrate = null;
+								$calc_fxrate_currency = null;
 								
 								switch (true) {
 									case ($txn_currency == $comp_currency && $credit_currency == $comp_currency):
@@ -396,38 +400,40 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 											
 										break;
 									case ($txn_currency == $comp_currency && $credit_currency != $comp_currency):
-										$credit_rate = $txn_amount / $credit_amount;
-										// case 2: calc credit_rate
-										list($txn_rate, $msg) = manageExchangeRate($date, $credit_currency, $credit_rate);
-										if ($msg) {
-											display_notification($msg);
-										}
+										// case 2
+										$calc_fxrate = $txn_amount / $credit_amount;
+										$calc_fxrate_currency = $credit_currency;
 										break;
 
 									case ($txn_currency != $comp_currency && $credit_currency == $comp_currency):
-										$txn_rate = $credit_amount / $txn_amount;
-										// case 3: calc txn rate
-										list($txn_rate, $msg) = manageExchangeRate($date, $txn_currency, $txn_rate);
-										if ($msg) {
-											display_notification($msg);
-										}
+										// case 3
+											$calc_fxrate = $credit_amount / $txn_amount;
+											$calc_fxrate_currency = $txn_currency;
 										break;
 
 									case ($txn_currency != $comp_currency && $credit_currency != $comp_currency):
 										// case 4:
-										// retrive txn_rate
+										// 2 fx rates required, try to get first one to calculate the second
 										list($txn_rate, $msg) = manageExchangeRate($date, $txn_currency, "");
 										if ($msg) {
 											display_notification($msg);
 										} else {
-											$credit_rate =  $txn_amount * $txn_rate / $credit_amount;
-											// calc credit_rate
-											list($txn_rate, $msg) = manageExchangeRate($date, $credit_currency, $credit_rate);
-											if ($msg) {
-												display_notification($msg);
-											}
+											$calc_fxrate =  $txn_amount * $txn_rate / $credit_amount;
+											$calc_fxrate_currency = $credit_currency;
 										}
+										
 										break;
+								}
+
+								if ($calc_fxrate) {
+									list($txn_rate, $msg) = manageExchangeRate($date, $calc_fxrate_currency, $calc_fxrate);
+									if ($forceFXrate && ($txn_rate != $calc_fxrate)) {
+										// forced rate could net ne applied
+										$errMsg = "Cannot apply forced fx rate! ".$msg;
+									}
+									elseif ($msg) {
+										display_notification($msg);
+									}
 								}
 							}
 							else {
@@ -797,6 +803,13 @@ if (1) {
 						$transferAccountId = get_post("transferAccountId_$tid");
 						$transferAmount = get_post("transferAmount_$tid");
 						$transferCharge = get_post("transferCharge_$tid");
+						if (!isset($_POST["forceFXrate_$tid"])) {
+							$forceFXrate = true;
+						}
+						else {
+							$forceFXrate = get_post("forceFXrate_$tid");
+						}
+						
 						if (empty($transferAccountId) && (splitFAIntstruction($transactionCodeDesc)[0]) == PRT_TRANSFER) { // initial proposal
 							$acct_number = splitFAIntstruction($transactionCodeDesc)[1];
 							$transferAmount = splitFAIntstruction($transactionCodeDesc)[2];
@@ -815,7 +828,7 @@ if (1) {
 
 						label_row(_("Credit to Account:"), bank_accounts_list($name = "transferAccountId_$tid", $selected_id = $transferAccountId, $submit_on_change = false, $spec_option = $specOption));
 						label_row(_("Amount:"),  text_input("transferAmount_$tid", $transferAmount));
-						label_row(_("Bank Charge:"),  text_input("transferCharge_$tid", $transferCharge));
+						label_row(_("Bank Charge:"),  text_input("transferCharge_$tid", $transferCharge)."&nbsp;".checkbox("Force FX rate", "forceFXrate_$tid", $forceFXrate, true));
 						break;
 
 					case PRT_MANUAL_SETTLEMENT:
