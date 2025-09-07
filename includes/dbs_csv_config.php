@@ -29,7 +29,7 @@ class DBS_CSV_CONFIG
                 DESCRIPTION => "BUSINESS ADVANCE CARD TRANSACTION",
                 DC_CREDIT => [
                     CONDITION => function ($trz) {
-                        return stristr($trz->transactionTitle1, 'CASHBACK') !== false ? 'CASHBACK' : DEF;
+                        return stristr($trz->transactionTitle1, 'cash') !== false ? 'CASHBACK' : DEF;
                     },
                     ACTION => [
                         'CASHBACK' =>
@@ -82,16 +82,19 @@ class DBS_CSV_CONFIG
                     ],
                 ],
             ],
-            'ICT' => [
-                DESCRIPTION => "FAST PAYMENT",
+            'RTF' => [
+                DESCRIPTION => "REMITTANCE TRANSFER OF FUNDS",
                 DC_DEBIT => [
                     CONDITION => function ($trz) {
                         if (stristr($trz->accountName1, 'CENTRAL PROVIDENT FUND BOARD')) {
                             return 'CPF';
                         } elseif (stristr($trz->accountName1, 'ContactOne Professional Services')) {
-                            return 'Contact One';
+                            return 'CONTACT_ONE';
                         } elseif (stristr($trz->accountName1, 'FINANCIAL TECHNOLOGY n SECURITY SOL')) {
                             return 'FINSEC_OCBC';
+                        } elseif (stristr($trz->transactionTitle1, 'Salary')) {
+                            return 'SALARY_ROGER';
+                        
                         } else {
                             return DEF;
                         }
@@ -101,7 +104,7 @@ class DBS_CSV_CONFIG
                         function ($trz) {
                             $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'CPF';
                         },
-                        'Contact One' =>
+                        'CONTACT_ONE' =>
                         function ($trz) {
                             $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'Contact One';
                         },
@@ -109,6 +112,52 @@ class DBS_CSV_CONFIG
                         function ($trz) {
                             // use FA Bank Account field "Number"
                             $trz->transactionCodeDesc = PRT_TRANSFER . DELIM . '713430494001' . DELIM . $trz->transactionAmount . DELIM . '0.00';
+                        },
+                        'SALARY_ROGER' =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'Employee Roger';
+                        },
+                        DEF =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_MANUAL_SETTLEMENT;
+                        },
+                    ],
+                ],
+            ],
+            'ICT' => [
+                DESCRIPTION => "FAST PAYMENT",
+                DC_DEBIT => [
+                    CONDITION => function ($trz) {
+                        if (stristr($trz->accountName1, 'CENTRAL PROVIDENT FUND BOARD')) {
+                            return 'CPF';
+                        } elseif (stristr($trz->accountName1, 'ContactOne Professional Services')) {
+                            return 'CONTACT_ONE';
+                        } elseif (stristr($trz->accountName1, 'FINANCIAL TECHNOLOGY n SECURITY SOL')) {
+                            return 'FINSEC_OCBC';
+                        } elseif (stristr($trz->transactionTitle1, 'Salary')) {
+                            return 'SALARY_ROGER';
+                        
+                        } else {
+                            return DEF;
+                        }
+                    },
+                    ACTION => [
+                        'CPF' =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'CPF';
+                        },
+                        'CONTACT_ONE' =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'Contact One';
+                        },
+                        'FINSEC_OCBC' =>
+                        function ($trz) {
+                            // use FA Bank Account field "Number"
+                            $trz->transactionCodeDesc = PRT_TRANSFER . DELIM . '713430494001' . DELIM . $trz->transactionAmount . DELIM . '0.00';
+                        },
+                        'SALARY_ROGER' =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'Employee Roger';
                         },
                         DEF =>
                         function ($trz) {
@@ -123,6 +172,8 @@ class DBS_CSV_CONFIG
                     CONDITION => function ($trz) {
                         if (stristr($trz->transactionTitle1, 'IRAS')) {
                             return 'IRAS';
+                        } elseif (stristr($trz->transactionTitle1, 'CPF')) {
+                                return 'CPF';
                         } else {
                             return DEF;
                         }
@@ -131,6 +182,10 @@ class DBS_CSV_CONFIG
                         'IRAS' =>
                         function ($trz) {
                             $trz->transactionCodeDesc = PRT_QUICK_ENTRY . DELIM . QE_PAYMENT . DELIM . self::QE_PAYMENT_IRAS;
+                        },
+                        'CPF' =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_SUPPLIER . DELIM . 'CPF';
                         },
                         DEF =>
                         function ($trz) {
@@ -175,6 +230,20 @@ class DBS_CSV_CONFIG
             ],
             'SCIDEAL' => [
                 DESCRIPTION => "SERVICE CHARGE FOR PROCESSING OF IDEAL TRANSACTIONS",
+                DC_DEBIT => [
+                    CONDITION => function ($trz) {
+                        return DEF;
+                    },
+                    ACTION => [
+                        DEF =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_QUICK_ENTRY . DELIM . QE_PAYMENT . DELIM . self::QE_PAYMENT_BANKCHARGE;
+                        },
+                    ],
+                ],
+            ],
+            'SC' => [
+                DESCRIPTION => "SERVICE CHARGE",
                 DC_DEBIT => [
                     CONDITION => function ($trz) {
                         return DEF;
