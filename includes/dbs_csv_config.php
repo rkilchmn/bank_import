@@ -173,6 +173,20 @@ class DBS_CSV_CONFIG
                     ],
                 ],
             ],
+            'SCIDEAL' => [
+                DESCRIPTION => "SERVICE CHARGE FOR PROCESSING OF IDEAL TRANSACTIONS",
+                DC_DEBIT => [
+                    CONDITION => function ($trz) {
+                        return DEF;
+                    },
+                    ACTION => [
+                        DEF =>
+                        function ($trz) {
+                            $trz->transactionCodeDesc = PRT_QUICK_ENTRY . DELIM . QE_PAYMENT . DELIM . self::QE_PAYMENT_BANKCHARGE;
+                        },
+                    ],
+                ],
+            ],
             'ADV' => [
                 DESCRIPTION => "PAYMENT ADVICE",
                 DC_DEBIT => [
