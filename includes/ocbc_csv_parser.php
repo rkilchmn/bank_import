@@ -35,7 +35,7 @@ class ocbc_csv_parser extends parser
 		$lines = explode("\n", $content);
 
 		// Extract field names from the first line
-		$header = str_getcsv(array_shift($lines));
+		$header = str_getcsv(array_shift($lines), ",", '"', "\\");
 
 		$sid = substr($static_data['filename'], 0, 32);
 
@@ -69,7 +69,7 @@ class ocbc_csv_parser extends parser
 			}
 
 			// Parse the current line into an associative array
-			$data = str_getcsv($line);
+			$data = str_getcsv($line, ",", '"', "\\");
 			$rowData = array();
 
 			// Combine header and data into an associative array

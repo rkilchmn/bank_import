@@ -108,8 +108,11 @@ class dbs_csv_parser extends parser
 			} elseif ($rowData['Credit']) {
 				$trz->transactionDC = DC_CREDIT;
 				$trz->transactionAmount = $rowData['Credit'];
+			} else {
+				// Handle the case where neither amount is valid
+				$trz->transactionDC = null;
+				$trz->transactionAmount = 0.00;
 			}
-
 			$accountingRules =  DBS_CSV_CONFIG::getAccountingRules();
 
 			// determine posting logic based on config

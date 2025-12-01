@@ -11,7 +11,7 @@ class native_csv_parser extends parser {
 		array_shift($lines);
 
 		$line = array_shift($lines);
-		$f = str_getcsv($line);
+		$f = str_getcsv($line, ",", '"', "\\");
 
 		//cleanup numeric fields
 		foreach(array(3,4) as $i) {
@@ -41,7 +41,7 @@ class native_csv_parser extends parser {
 		$lineid = 0;
 		foreach($lines as $line) {
 
-			$f = str_getcsv($line);
+			$f = str_getcsv($line, ",", '"', "\\");
 
 			if(empty($f[0]))
 				continue;
