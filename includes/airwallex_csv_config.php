@@ -27,7 +27,7 @@ class AIRWALLEX_CSV_CONFIG
                 DESCRIPTION => "DEPOSIT",
                 DC_CREDIT => [
                     CONDITION => function ($trz) {
-                        if (stristr($trz->transactionTitle1, 'FIXTRA')) {
+                        if (stristr($trz->transactionTitle1 ?? '', 'FIXTRA')) {
                             return 'FIXTRA';
                         } else {
                             return DEF;
@@ -60,7 +60,7 @@ class AIRWALLEX_CSV_CONFIG
                 DESCRIPTION => "PAYOUT",
                 DC_DEBIT => [
                     CONDITION => function ($trz) {
-                        if (stristr($trz->accountName1, 'U15502348')) {
+                        if (stristr($trz->accountName1 ?? '', 'U15502348')) {
                             return 'TRA_IBKR';
                         } else {
                             return DEF;

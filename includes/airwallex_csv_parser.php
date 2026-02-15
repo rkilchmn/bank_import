@@ -35,7 +35,7 @@ class airwallex_csv_parser extends parser
 		$lines = explode("\n", $content);
 
 		// Extract field names from the first line
-		$header = str_getcsv(array_shift($lines));
+		$header = str_getcsv(array_shift($lines), ',', '"', '\\');
 
 		$sid = substr($static_data['filename'], 0, 32);
 
@@ -73,7 +73,7 @@ class airwallex_csv_parser extends parser
   			// 2024-06-24T22:41:36+1000,DEPOSIT,DEPOSIT,5d3c0951-f0ff-48c9-b3b8-a0056f2c07d7,Payment from XYZ Corp for Invoice,EUR,,,,,"4,420.00",,,"4,420.00","4,420.00","4,420.00",2024-06-24T22:40:11+1000,,Invoice No. 001/2024,
 
 			// Parse the current line into an associative array
-			$data = str_getcsv($line);
+			$data = str_getcsv($line, ',', '"', '\\');
 			$rowData = array();
 
 			// Combine header and data into an associative array
@@ -93,14 +93,16 @@ class airwallex_csv_parser extends parser
 			$trz->valueTimestamp = $this->convertDate( AIRWALLEX_CSV_CONFIG::FILE_DATE_FORMAT, TARGET_DATE_FORMAT, $rowData['Time']);
 			$trz->entryTimestamp = $this->convertDate( AIRWALLEX_CSV_CONFIG::FILE_DATE_FORMAT, TARGET_DATE_FORMAT, $rowData['Created At']);
 			$trz->account = $smt->account;
-			$trz->transactionTitle1 = trim($rowData['Description']);
-			if (!empty(trim($rowData['Reference']))) {
-				$trz->transactionTitle1 .= "\nReference: " . trim($rowData['Reference']);
+			$trz->transactionTitle1 = trim($rowData['Description'] ?? '');
+			$reference = $rowData['Reference'] ?? '';
+			if (!empty(trim($reference))) {
+				$trz->transactionTitle1 .= "\nReference: " . trim($reference);
 			}
-			if (!empty(trim($rowData['Note to Self']))) {
-				$trz->transactionTitle1 .= "\nNote to Self: " . trim($rowData['Note to Self']);
+			$noteToSelf = $rowData['Note to Self'] ?? '';
+			if (!empty(trim($noteToSelf))) {
+				$trz->transactionTitle1 .= "\nNote to Self: " . trim($noteToSelf);
 			}
-			$trz->accountName1 =  $rowData['Reference'];
+			$trz->accountName1 =  $rowData['Reference'] ?? '';
 			$trz->transactionType = $rowData['Financial Transaction Type'];
 			$trz->transactionCode = $rowData['Transaction Id'];
 
