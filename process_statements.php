@@ -25,11 +25,13 @@ include_once($path_to_root . "/includes/ui/ui_lists.inc");
 include_once($path_to_root . "/includes/ui/ui_globals.inc");
 include_once($path_to_root . "/includes/ui/ui_controls.inc");
 include_once($path_to_root . "/includes/ui/items_cart.inc");
+include_once($path_to_root . "/includes/date_functions.inc"); // is_date_in_fiscalyear
 include_once($path_to_root . "/includes/data_checks.inc");
 include_once($path_to_root . "/gl/includes/db/gl_db_banking.inc"); // contains add_bank_trans
 include_once($path_to_root . "/gl/includes/db/gl_db_bank_accounts.inc"); // contains get_quick_entries
 include_once($path_to_root . "/modules/bank_import/includes/includes.inc");
 include_once($path_to_root . "/modules/bank_import/includes/pdata.inc");
+
 
 //RK edit links
 include_once($path_to_root . "/includes/ui/db_pager_view.inc");
@@ -192,6 +194,11 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 					$rate = null;
 					$txn_currency = $txn_account['bank_curr_code'];
 					$date = sql2date($trz['valueTimestamp']);
+
+					if (!is_date_in_fiscalyear($date)) {
+						display_error("TxnID #$tid: Date $date is not in fiscal year. Check Company Setup.");
+						break;
+					}
 
 					switch (true) {
 							// case ($_POST['processingType'][$k] == PRT_SUPPLIER && (splitFAIntstruction($trz['transactionCodeDesc'])[0] == ST_SUPPAYMENT)):
@@ -656,11 +663,12 @@ if (1) {
 		echo '<td width="50%">';
 
 		start_table(TABLESTYLE2, "width='100%'");
+		label_row("StatementID/TxnID:", "$smt_statementId / #$tid");
 		label_row("Trans Date:", sql2date($valueTimestamp), "width='25%' class='label'");
 		label_row("Trans Type:", ($transactionDC == 'C') ? "Credit" : "Debit");
 		label_row("Account:", $bankAccount);
 		// label_row("Counterparty:", $bankAccountName);
-		label_row("StatementID:", $smt_statementId);
+		
 		label_row("Amount/Charge(s):", $amount . ' / ' . $charge);
 		label_row("Trans Title:", $transactionTitle);
 		end_table();
