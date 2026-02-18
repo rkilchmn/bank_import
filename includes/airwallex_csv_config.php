@@ -60,7 +60,7 @@ class AIRWALLEX_CSV_CONFIG
                 DESCRIPTION => "PAYOUT",
                 DC_DEBIT => [
                     CONDITION => function ($trz) {
-                        if (stristr($trz->accountName1 ?? '', 'U15502348')) {
+                        if (stristr($trz->transactionTitle1 ?? '', 'Financial Technology Consulting Pty Ltd')) {
                             return 'TRA_IBKR';
                         } else {
                             return DEF;
