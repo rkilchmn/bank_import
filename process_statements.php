@@ -161,7 +161,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 					$txn_account = get_bank_account_by_number($trz['account']);
 					if (empty($txn_account)) {
 						$Ajax->activate('doc_tbl');
-						display_error('the bank account <b>' . $trz['account'] . '</b> is not defined in Bank Accounts');
+						display_error("TxnID #$tid: the bank account <b>" . $trz['account'] . '</b> is not defined in Bank Accounts');
 						$error = 1;
 					}
 					//display_notification('<pre>'.print_r($ba,true).'</pre>');
@@ -207,13 +207,13 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							if ($txn_currency != $comp_currency) {
 								list($rate, $msg) = manageExchangeRate($date, $txn_currency, "");
 								if ($msg) {
-									display_notification($msg);
+									display_notification("TxnID #$tid: " . $msg);
 								}
 							}
 							$transType = ST_SUPPAYMENT;
 							$reference = $Refs->get_next($transType);
 							if (!is_new_reference($reference, $transType)) {
-								display_error("Reference: $reference of Transaction Type: $transType already used.");
+								display_error("TxnID #$tid: Reference: $reference of Transaction Type: $transType already used.");
 								break;
 							}
 
@@ -248,13 +248,13 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							if ($txn_currency != $comp_currency) {
 								list($rate, $msg) = manageExchangeRate($date, $txn_currency, "");
 								if ($msg) {
-									display_notification($msg);
+									display_notification("TxnID #$tid: " . $msg);
 								}
 							}
 							$transType = ST_CUSTPAYMENT;
 							$reference = $Refs->get_next($transType);
 							if (!is_new_reference($reference, $transType)) {
-								display_error("Reference: $reference of Transaction Type: $transType already used.");
+								display_error("TxnID #$tid: Reference: $reference of Transaction Type: $transType already used.");
 								break;
 							}
 							//RK } while (!is_new_reference($reference, ST_BANKDEPOSIT));
@@ -292,13 +292,13 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							if ($txn_currency != $comp_currency) {
 								list($rate, $msg) = manageExchangeRate($date, $txn_currency, "");
 								if ($msg) {
-									display_notification($msg);
+									display_notification("TxnID #$tid: " . $msg);
 								}
 							}
 
 							$cart->reference = $Refs->get_next($cart->trans_type);
 							if (!is_new_reference($cart->reference, $cart->trans_type)) {
-								display_error("Reference: $cart->reference of Transaction Type: $cart->trans_type already used.");
+								display_error("TxnID #$tid: Reference: $cart->reference of Transaction Type: $cart->trans_type already used.");
 								break;
 							}
 
@@ -341,7 +341,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 											$count[PRT_QUICK_ENTRY]++;
 										}
 									} else {
-										display_notification("QE not loaded: rval=$rval, k=$k, total=$total");
+										display_notification("TxnID #$tid: QE not loaded: rval=$rval, k=$k, total=$total");
 										//display_notification("debug: <pre>".print_r($_POST, true).'</pre>');
 									}
 									break;
@@ -423,7 +423,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 										// 2 fx rates required, try to get first one to calculate the second
 										list($txn_rate, $msg) = manageExchangeRate($date, $txn_currency, "");
 										if ($msg) {
-											display_notification($msg);
+											display_notification("TxnID #$tid: " . $msg);
 										} else {
 											$calc_fxrate =  $txn_amount * $txn_rate / $credit_amount;
 											$calc_fxrate_currency = $credit_currency;
@@ -439,7 +439,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 										$errMsg = "Cannot apply forced fx rate! ".$msg;
 									}
 									elseif ($msg) {
-										display_notification($msg);
+										display_notification("TxnID #$tid: " . $msg);
 									}
 								}
 							}
@@ -448,7 +448,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							}
 
 							if ($errMsg) {
-								display_error( $errMsg);
+								display_error("TxnID #$tid: " . $errMsg);
 								break;
 							}
 
@@ -477,16 +477,16 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 										if ($txn_currency != $comp_currency) {
 										list($rate, $msg) = manageExchangeRate($transDate, $txn_currency, "");
 										if ($msg) {
-											display_notification($msg);
+											display_notification("TxnID #$tid: " . $msg);
 										}
 									}
 									update_transactions($tid, $_cids, $status = STATUS_PROCESSED, $txn['trans_no'], $transDate, $transType, $transRef);
 									$count[PRT_MANUAL_SETTLEMENT]++;
 								} else {
-									display_error("Invalid Type '$transType', reference '$transRef' or date '$transDate' for Manual Transaction");
+									display_error("TxnID #$tid: Invalid Type '$transType', reference '$transRef' or date '$transDate' for Manual Transaction");
 								}
 							} else {
-								display_notification('Type or Reference for Manual Transaction missing');
+								display_notification("TxnID #$tid: Type or Reference for Manual Transaction missing");
 							}
 							break;
 					} // end of switch
