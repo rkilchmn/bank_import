@@ -96,7 +96,7 @@ function manageExchangeRate($date, $txn_currency, $rate)
 		}
 	}
 
-	return array($rate, $msg);
+	return array((float)$rate, $msg);
 }
 
 if ($SysPrefs->use_popup_windows)
@@ -303,9 +303,12 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 							}
 
 							$cart->tran_date = sql2date($trz['valueTimestamp']);
-							if (!is_date_in_fiscalyear($cart->tran_date)) {
-								$cart->tran_date = end_fiscalyear();
-							}
+
+							// will throw error higher up if not fiscal year
+							// if (!is_date_in_fiscalyear($cart->tran_date)) {
+							// 	$cart->tran_date = end_fiscalyear();
+							// }
+
 							//this loads the QE into cart!!!
 							//$rval = display_quick_entries($cart, $_POST['qeId'][$k], $_POST['amount'][$k], ($_POST['transDC'][$k]=='C') ? QE_DEPOSIT : QE_PAYMENT);
 							$rval = qe_to_cart($cart, $_POST["partnerId_$k"], $trz['transactionAmount'], splitFAIntstruction($trz['transactionCodeDesc'])[1], $trz['transactionTitle']);
@@ -811,17 +814,13 @@ if (1) {
 						$transferAccountId = get_post("transferAccountId_$tid");
 						$transferAmount = get_post("transferAmount_$tid");
 						$transferCharge = get_post("transferCharge_$tid");
-						if (!isset($_POST["forceFXrate_$tid"])) {
-							$forceFXrate = true;
-						}
-						else {
-							$forceFXrate = get_post("forceFXrate_$tid");
-						}
+						$forceFXrate = get_post("forceFXrate_$tid");
 						
 						if (empty($transferAccountId) && (splitFAIntstruction($transactionCodeDesc)[0]) == PRT_TRANSFER) { // initial proposal
 							$acct_number = splitFAIntstruction($transactionCodeDesc)[1];
 							$transferAmount = splitFAIntstruction($transactionCodeDesc)[2];
 							$transferCharge = splitFAIntstruction($transactionCodeDesc)[3];
+							$forceFXrate = true; // default force FX
 							if (isset( $acct_number) && ($acct_number != '')) {
 								$transferAccountId = get_bank_account_by_number($acct_number)['id'];
 							}
@@ -836,7 +835,7 @@ if (1) {
 
 						label_row(_("Credit to Account:"), bank_accounts_list($name = "transferAccountId_$tid", $selected_id = $transferAccountId, $submit_on_change = false, $spec_option = $specOption));
 						label_row(_("Amount:"),  text_input("transferAmount_$tid", $transferAmount));
-						label_row(_("Bank Charge:"),  text_input("transferCharge_$tid", $transferCharge)."&nbsp;".checkbox("Force FX rate", "forceFXrate_$tid", $forceFXrate, true));
+						label_row(_("Bank Charge:"),  text_input("transferCharge_$tid", $transferCharge)."&nbsp;".checkbox("Force FX rate", "forceFXrate_$tid", $forceFXrate, false));
 						break;
 
 					case PRT_MANUAL_SETTLEMENT:
