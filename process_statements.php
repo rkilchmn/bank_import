@@ -575,7 +575,7 @@ if (1) {
 	// $statements[STATEMENT_LIST_ALL] = STATEMENT_LIST_ALL;
 	$statements[''] = STATEMENT_LIST_ALL;
 
-	label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = false));
+	label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = _("All Accounts")));
 	date_cells(_("From:"), 'TransAfterDate', '', null, -30);
 	date_cells(_("To:"), 'TransToDate', '', null, 1);
 
@@ -610,7 +610,7 @@ if (1) {
 				$smt_statementId = $trz['statementId'];
 				$valueTimestamp = $trz['valueTimestamp'];
 				$bankAccount = $trz['account'];
-				$bankAccountName = $trz['accountName'];
+				$bankAccountName = $trz['bank_account_name'] ? $trz['bank_account_name'] : $trz['account'];
 				$transactionTitle = $trz['transactionTitle'];
 				$status = $trz['status'];
 				$tid = $trz['id'];
@@ -634,7 +634,7 @@ if (1) {
 					$smt_account = $trz['smt_account'];
 					$valueTimestamp = $trz['valueTimestamp'];
 					$bankAccount = $trz['account'];
-					$bankAccountName = $trz['accountName'];
+					$bankAccountName = $trz['bank_account_name'] ? $trz['bank_account_name'] : $trz['account'];
 					$transactionTitle = $trz['transactionTitle'];
 					$status = $trz['status'];
 					$tid = $trz['id']; // tid is from charge
@@ -669,7 +669,7 @@ if (1) {
 		label_row("StatementID/TxnID:", "$smt_statementId / #$tid");
 		label_row("Trans Date:", sql2date($valueTimestamp), "width='25%' class='label'");
 		label_row("Trans Type:", ($transactionDC == 'C') ? "Credit" : "Debit");
-		label_row("Account:", $bankAccount);
+		label_row("Bank Account:", $bankAccountName);
 		// label_row("Counterparty:", $bankAccountName);
 		
 		label_row("Amount/Charge(s):", $amount . ' / ' . $charge);

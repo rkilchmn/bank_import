@@ -75,7 +75,7 @@ start_form();
 start_table(TABLESTYLE_NOBORDER);
 start_row();
 if (!isset($_POST['TransAfterDate']))
-	$_POST['TransAfterDate'] = begin_month(Today());
+	$_POST['TransAfterDate'] = begin_fiscalyear();
 
 if (!isset($_POST['TransToDate']))
 	$_POST['TransToDate'] = end_month(Today());
@@ -83,7 +83,7 @@ if (!isset($_POST['TransToDate']))
 if (!isset($_POST['accountFilter'])) 
     $_POST['accountFilter'] = 0;
 
-label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = false));
+label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = _("All Accounts")));
 date_cells(_("From:"), 'TransAfterDate', '', null, -30);
 date_cells(_("To:"), 'TransToDate', '', null, 1);
 
@@ -96,11 +96,20 @@ end_table();
 // this is data display table
 $bankAccount = get_bank_account($_POST['accountFilter']);
 
-$sql = " SELECT id, bank, account, currency, startBalance, endBalance, smtDate, number, seq, statementId,
+$sql = " SELECT smt.id, smt.bank, smt.account, smt.currency, smt.startBalance, smt.endBalance, smt.smtDate, smt.number, smt.seq, smt.statementId,
+    ba.bank_account_name,
     (SELECT count(id) FROM ".TB_PREF."bi_transactions WHERE smt_id=smt.id) as numTrans
     FROM
-	".TB_PREF."bi_statements smt WHERE smtDate >= ".db_escape(date2sql($_POST['TransAfterDate']))." AND smtDate <= ".
-	db_escape(date2sql($_POST['TransToDate']))." AND account = " . db_escape($bankAccount['bank_account_number']) . " ORDER BY smtDate ASC";
+	".TB_PREF."bi_statements smt
+    LEFT JOIN ".TB_PREF."bank_accounts ba ON smt.account = ba.bank_account_number
+    WHERE smtDate >= ".db_escape(date2sql($_POST['TransAfterDate']))." AND smtDate <= ".
+	db_escape(date2sql($_POST['TransToDate']));
+
+if ($_POST['accountFilter']) {
+    $sql .= " AND smt.account = " . db_escape($bankAccount['bank_account_number']);
+}
+
+$sql .= " ORDER BY smtDate ASC";
 
 $res=db_query($sql, 'unable to get transactions data');
 
@@ -128,7 +137,8 @@ while($myrow = db_fetch($res)) {
     echo "<td>". $myrow['bank'] . "</td>";
     echo "<td>" . $myrow['statementId']."</td>";
     echo "<td>" . $myrow['smtDate'] . "</td>";
-    echo "<td>" . $myrow['account']. '(' . $myrow['currency'] . ')' . "</td>";
+    $accountDisplay = $myrow['bank_account_name'] ? $myrow['bank_account_name'] : $myrow['account'];
+    echo "<td>" . $accountDisplay . '(' . $myrow['currency'] . ')' . "</td>";
     amount_cell($myrow['startBalance']);
     amount_cell($myrow['endBalance']);
     amount_cell($myrow['endBalance'] - $myrow['startBalance']);
