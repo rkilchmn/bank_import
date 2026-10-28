@@ -902,7 +902,7 @@ if (1) {
 		echo '<td align="center" colspan="2">';
 		echo submit("action", _(ACTION_PROCESS_SELECT_ALL), false, '');
 		echo submit("action", _(ACTION_PROCESS_DESELECT_ALL), false, '');
-		echo submit("action", _(ACTION_PROCESS_BULK), false, '');
+		echo submit("action", _(ACTION_PROCESS_BULK), false, '', 'process');
 
 		echo '</td>';
 		end_row();
