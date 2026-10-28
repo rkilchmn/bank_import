@@ -615,6 +615,9 @@ if (1) {
 				$valueTimestamp = $trz['valueTimestamp'];
 				$bankAccount = $trz['account'];
 				$bankAccountName = $trz['bank_account_name'] ? $trz['bank_account_name'] : $trz['account'];
+				if (isset($trz['bank_curr_code']) && $trz['bank_curr_code'] && $trz['bank_curr_code'] != get_company_currency()) {
+					$bankAccountName .= "&nbsp;-&nbsp;" . $trz['bank_curr_code'];
+				}
 				$transactionTitle = $trz['transactionTitle'];
 				$status = $trz['status'];
 				$tid = $trz['id'];
@@ -639,6 +642,9 @@ if (1) {
 					$valueTimestamp = $trz['valueTimestamp'];
 					$bankAccount = $trz['account'];
 					$bankAccountName = $trz['bank_account_name'] ? $trz['bank_account_name'] : $trz['account'];
+					if (isset($trz['bank_curr_code']) && $trz['bank_curr_code'] && $trz['bank_curr_code'] != get_company_currency()) {
+						$bankAccountName .= "&nbsp;-&nbsp;" . $trz['bank_curr_code'];
+					}
 					$transactionTitle = $trz['transactionTitle'];
 					$status = $trz['status'];
 					$tid = $trz['id']; // tid is from charge

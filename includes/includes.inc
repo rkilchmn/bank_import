@@ -522,7 +522,7 @@ function sqlSelectControl( $sql, $numSelect) {
 function getStatementTransactions($accountFilter, $filterSmtId, $TransAfterDate, $TransToDate, $statusFilter ){
 
 	$sql = "
-	SELECT t.*, s.id as smt_id, s.account as smt_account, s.currency as smt_currency, s.statementId, ba.bank_account_name from " . TB_PREF . "bi_transactions t
+	SELECT t.*, s.id as smt_id, s.account as smt_account, s.currency as smt_currency, s.statementId, ba.bank_account_name, ba.bank_curr_code from " . TB_PREF . "bi_transactions t
      	    LEFT JOIN " . TB_PREF . "bi_statements as s ON t.smt_id = s.id
      	    LEFT JOIN " . TB_PREF . "bank_accounts as ba ON s.account = ba.bank_account_number ";
 
