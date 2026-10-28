@@ -24,6 +24,7 @@ include_once($path_to_root . "/includes/ui/ui_input.inc");
 include_once($path_to_root . "/includes/ui/ui_lists.inc");
 include_once($path_to_root . "/includes/ui/ui_globals.inc");
 include_once($path_to_root . "/includes/ui/ui_controls.inc");
+include_once($path_to_root . "/includes/ui/ui_view.inc");
 include_once($path_to_root . "/includes/ui/items_cart.inc");
 include_once($path_to_root . "/includes/date_functions.inc"); // is_date_in_fiscalyear
 include_once($path_to_root . "/includes/data_checks.inc");
@@ -103,8 +104,11 @@ if ($SysPrefs->use_popup_windows)
 	$js .= get_js_open_window(800, 500);
 if (user_use_date_picker())
 	$js .= get_js_date_picker();
+$js .= get_js_history(array('accountFilter', 'TransAfterDate', 'TransToDate', 'statusFilter', 'filterSmtId'));
 
 page(_($help_context = "Bank Transactions"), @$_GET['popup'], false, "", $js);
+
+set_posts(array('accountFilter', 'TransAfterDate', 'TransToDate', 'statusFilter', 'filterSmtId'));
 
 $processingTypes = array(
 	PRT_SUPPLIER => 'Supplier',
@@ -349,7 +353,7 @@ if ((isset($_POST['action']) && ($_POST['action'] == ACTION_PROCESS_BULK)) || is
 									}
 									break;
 
-								case ST_JOURNAL;
+								case ST_JOURNAL:
 									$cart->event_date = $cart->tran_date;
 									$cart->doc_date = $cart->tran_date;
 									if ($txn_currency != $comp_currency) {
