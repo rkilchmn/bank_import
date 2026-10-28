@@ -87,7 +87,6 @@ class hooks_bank_import extends hooks
 
 		// Store the data:
 		$json = curl_exec($ch);
-		curl_close($ch);
 
 		// Decode JSON response:
 		$result = json_decode($json, true);
