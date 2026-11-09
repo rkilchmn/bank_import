@@ -614,9 +614,18 @@ if (1) {
 				$smt_statementId = $trz['statementId'];
 				$valueTimestamp = $trz['valueTimestamp'];
 				$bankAccount = $trz['account'];
-				$bankAccountName = $trz['bank_account_name'] ? $trz['bank_account_name'] : $trz['account'];
-				if (isset($trz['bank_curr_code']) && $trz['bank_curr_code'] && $trz['bank_curr_code'] != get_company_currency()) {
-					$bankAccountName .= "&nbsp;-&nbsp;" . $trz['bank_curr_code'];
+				$bankAccountName = $trz['account'];
+				$txn_account = get_bank_account_by_number($trz['account']);
+				if ($txn_account) {
+					$bankAccountName = $txn_account['bank_account_name'];
+					if (isset($txn_account['bank_curr_code']) && $txn_account['bank_curr_code'] && $txn_account['bank_curr_code'] != get_company_currency()) {
+						$bankAccountName .= "&nbsp;-&nbsp;" . $txn_account['bank_curr_code'];
+					}
+				} else {
+					$bankAccountName = $trz['bank_account_name'] ? $trz['bank_account_name'] : $trz['account'];
+					if (isset($trz['bank_curr_code']) && $trz['bank_curr_code'] && $trz['bank_curr_code'] != get_company_currency()) {
+						$bankAccountName .= "&nbsp;-&nbsp;" . $trz['bank_curr_code'];
+					}
 				}
 				$transactionTitle = $trz['transactionTitle'];
 				$status = $trz['status'];
@@ -641,9 +650,18 @@ if (1) {
 					$smt_account = $trz['smt_account'];
 					$valueTimestamp = $trz['valueTimestamp'];
 					$bankAccount = $trz['account'];
-					$bankAccountName = $trz['bank_account_name'] ? $trz['bank_account_name'] : $trz['account'];
-					if (isset($trz['bank_curr_code']) && $trz['bank_curr_code'] && $trz['bank_curr_code'] != get_company_currency()) {
-						$bankAccountName .= "&nbsp;-&nbsp;" . $trz['bank_curr_code'];
+					$bankAccountName = $trz['account'];
+					$txn_account = get_bank_account_by_number($trz['account']);
+					if ($txn_account) {
+						$bankAccountName = $txn_account['bank_account_name'];
+						if (isset($txn_account['bank_curr_code']) && $txn_account['bank_curr_code'] && $txn_account['bank_curr_code'] != get_company_currency()) {
+							$bankAccountName .= "&nbsp;-&nbsp;" . $txn_account['bank_curr_code'];
+						}
+					} else {
+						$bankAccountName = $trz['bank_account_name'] ? $trz['bank_account_name'] : $trz['account'];
+						if (isset($trz['bank_curr_code']) && $trz['bank_curr_code'] && $trz['bank_curr_code'] != get_company_currency()) {
+							$bankAccountName .= "&nbsp;-&nbsp;" . $trz['bank_curr_code'];
+						}
 					}
 					$transactionTitle = $trz['transactionTitle'];
 					$status = $trz['status'];
