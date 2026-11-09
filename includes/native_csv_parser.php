@@ -53,7 +53,9 @@ class native_csv_parser extends parser {
 
 			//cleanup numeric fields
 			foreach(array(7,9) as $i) {
-				$f[$i] = str_replace(',', '', $f[$i]);
+				if (isset($f[$i])) {
+					$f[$i] = str_replace(',', '', $f[$i]);
+				}
 			}
 
 			$trz->valueTimestamp = $f[0];
@@ -65,12 +67,12 @@ class native_csv_parser extends parser {
 			$trz->transactionDC = $f[6];
 			$trz->transactionAmount = $f[7];
 			$trz->transactionTitle1 = $f[8];
-			$transactionChargeAmount = $f[9]; // charge will be a seperate new transaction
-			$transactionChargeTitle1 = $f[10]; // charge will be a seperate new transaction
+			$transactionChargeAmount = isset($f[9]) ? $f[9] : '0'; // charge will be a seperate new transaction
+			$transactionChargeTitle1 = isset($f[10]) ? $f[10] : ''; // charge will be a seperate new transaction
 			
 			// chack debit/credit
 			if ($trz->transactionDC == "C") {
-				$total = $trz->transactionAmount - $transactionChargeAmount;
+				$total = (float) $trz->transactionAmount - (float) $transactionChargeAmount;
 				if ($total < 0 )
 					// negative amount -> bocomes a debit/bank payment
 					$trz->transactionDC = "D";
@@ -85,13 +87,13 @@ class native_csv_parser extends parser {
 				$trz->transactionCode = $smt->bank . ":" . $smt->statementId . ":" . $lineid;
 			}
 
-			if ($transactionChargeAmount > 0) {
+			if ((float) $transactionChargeAmount > 0) {
 				// add additional transaction for charge
 				$trz_chg = clone $trz;
 
 				$trz_chg->transactionType = 'COM';
 				$trz_chg->transactionDC = "D"; //RK charge always debit
-				$trz_chg->transactionAmount = $transactionChargeAmount;
+				$trz_chg->transactionAmount = (float) $transactionChargeAmount;
 				$trz_chg->transactionTitle1 = $transactionChargeTitle1;
 				$trz_chg->account = "";
 				$trz_chg->accountName1 = "";
