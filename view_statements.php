@@ -35,13 +35,9 @@ $js = "";
 
 $js .= "
 jQuery(document).ready(function() {
-    jQuery('form').on('submit', function(e) {
-        var $input = $(this).find('input[type=submit]');
-        var data = $input.data('action');
-        if ($input.attr('name') && $input.attr('value') && $input.attr('name').indexOf('reverse') >= 0) {
-            if (!confirm('Are you sure you want to void/reverse all processed transactions for this bank statement?')) {
-                e.preventDefault();
-            }
+    jQuery('input[type=submit][name*=\"reverse\"]').on('click', function(e) {
+        if (!confirm('Are you sure you want to void/reverse all processed transactions for this bank statement?')) {
+            e.preventDefault();
         }
     });
 });
@@ -96,7 +92,7 @@ if (isset($_POST['reverse'])) {
                 '', $smt_id , '', '', STATUS_PROCESSED);
             $numProcessed = count($processedTransactions);
 
-            if ($numProcessed > 1) {
+            if ($numProcessed > 0) {
                 // void each processed transaction
                 foreach ($processedTransactions as $tran_code => $trz_rows) {
                     foreach ($trz_rows as $trz) {
@@ -195,7 +191,7 @@ while($myrow = db_fetch($res)) {
     if ($numProcessed == 0) {
          echo submit("delete[".$myrow['id']."]", _("Delete"), false, '', 'default');
     }
-    if ($numProcessed > 1) {
+    if ($numProcessed > 0) {
          echo submit("reverse[".$myrow['id']."]", _("Reverse"), false, '', 'default');
     }
     echo"</td>";
