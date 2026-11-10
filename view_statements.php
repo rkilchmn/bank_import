@@ -105,9 +105,6 @@ if (isset($_POST['reverse'])) {
                             void_gl_trans($trz['fa_trz_type'], $trz['fa_trz_no'], true);
                             void_cust_allocations($trz['fa_trz_type'], $trz['fa_trz_no'], $trz['valueTimestamp']);
                         }
-                        // mark transaction as unprocessed
-                        $sql = "UPDATE ".TB_PREF."bi_transactions SET status=0 WHERE id=" . db_escape($trz['id']);
-                        db_query($sql, 'unable to update transaction status');
                     }
                 }
                 display_notification(sprintf(_("%d processed transactions have been voided."), $numProcessed), false);
