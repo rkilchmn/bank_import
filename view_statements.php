@@ -19,6 +19,10 @@ include_once($path_to_root . "/includes/ui/ui_lists.inc");
 include_once($path_to_root . "/includes/ui/ui_globals.inc");
 include_once($path_to_root . "/includes/data_checks.inc");
 
+include_once($path_to_root . "/gl/includes/db/gl_db_trans.inc");
+include_once($path_to_root . "/gl/includes/db/gl_db_bank_trans.inc");
+include_once($path_to_root . "/sales/includes/db/custalloc_db.inc");
+
 include_once($path_to_root . "/modules/bank_import/includes/includes.inc");
 
 
@@ -28,6 +32,20 @@ $js = "";
 // 	$js .= get_js_open_window(900, 500);
 // if ($use_date_picker)
 // 		$js .= get_js_date_picker();
+
+$js .= "
+jQuery(document).ready(function() {
+    jQuery('form').on('submit', function(e) {
+        var $input = $(this).find('input[type=submit]');
+        var data = $input.data('action');
+        if ($input.attr('name') && $input.attr('value') && $input.attr('name').indexOf('reverse') >= 0) {
+            if (!confirm('Are you sure you want to void/reverse all processed transactions for this bank statement?')) {
+                e.preventDefault();
+            }
+        }
+    });
+});
+";
 
 if ($SysPrefs->use_popup_windows)
 	$js .= get_js_open_window(800, 500);
@@ -64,6 +82,38 @@ if (isset($_POST['delete'])) {
                 // refresh page
                 $Ajax->activate('doc_tbl');
             }     
+        }
+    }
+}
+
+if (isset($_POST['reverse'])) {
+    foreach (array_keys($_POST['reverse']) as $k) {
+        $smt_id = $k;
+		$v = $_POST['reverse'][$smt_id];
+        if ($v = "reverse") {
+            // get processed transactions for this statement
+            list( $processedTransactions, $statements) = getStatementTransactions(
+                '', $smt_id , '', '', STATUS_PROCESSED);
+            $numProcessed = count($processedTransactions);
+
+            if ($numProcessed > 1) {
+                // void each processed transaction
+                foreach ($processedTransactions as $tran_code => $trz_rows) {
+                    foreach ($trz_rows as $trz) {
+                        if (!empty($trz['fa_trz_no']) && !empty($trz['fa_trz_type'])) {
+                            void_bank_trans($trz['fa_trz_type'], $trz['fa_trz_no'], true);
+                            void_gl_trans($trz['fa_trz_type'], $trz['fa_trz_no'], true);
+                            void_cust_allocations($trz['fa_trz_type'], $trz['fa_trz_no'], $trz['valueTimestamp']);
+                        }
+                        // mark transaction as unprocessed
+                        $sql = "UPDATE ".TB_PREF."bi_transactions SET status=0 WHERE id=" . db_escape($trz['id']);
+                        db_query($sql, 'unable to update transaction status');
+                    }
+                }
+                display_notification(sprintf(_("%d processed transactions have been voided."), $numProcessed), false);
+            }
+            // refresh page
+            $Ajax->activate('doc_tbl');
         }
     }
 }
@@ -147,6 +197,9 @@ while($myrow = db_fetch($res)) {
     echo "<td>";
     if ($numProcessed == 0) {
          echo submit("delete[".$myrow['id']."]", _("Delete"), false, '', 'default');
+    }
+    if ($numProcessed > 1) {
+         echo submit("reverse[".$myrow['id']."]", _("Reverse"), false, '', 'default');
     }
     echo"</td>";
     end_row();
