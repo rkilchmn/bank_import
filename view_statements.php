@@ -123,6 +123,12 @@ if (isset($_POST['reverse'])) {
                                 $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $txnDate, $reverseMemo);
                                 if ($err !== false) {
                                     $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
+                                } else {
+                                    // Verify voiding actually happened by checking if transaction still exists
+                                    $check = get_voided_entry($trz['fa_trz_type'], $trz['fa_trz_no']);
+                                    if ($check === null || $check === false) {
+                                        $voidErrors[] = sprintf(_("Transaction #%s (type %s): void_transaction returned success but transaction was not voided"), $trz['fa_trz_no'], $trz['fa_trz_type']);
+                                    }
                                 }
                             } catch (Exception $e) {
                                 $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $e->getMessage());
