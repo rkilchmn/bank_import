@@ -100,7 +100,7 @@ if (isset($_POST['reverse'])) {
                 '', $smt_id , '', '', STATUS_PROCESSED);
             $numProcessed = count($processedTransactions);
 
-            if ($numProcessed > 0) {
+if ($numProcessed > 0) {
                 // void each processed transaction using FA's void_transaction for proper memo recording
                 foreach ($processedTransactions as $tran_code => $trz_rows) {
                     foreach ($trz_rows as $trz) {
@@ -116,7 +116,7 @@ if (isset($_POST['reverse'])) {
                                 $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $txnDate, $reverseMemo);
                                 if ($err !== false) {
                                     $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
-} else {
+                                } else {
                                     // Verify voiding actually happened by checking if transaction still exists
                                     $check = get_voided_entry($trz['fa_trz_no'], $trz['fa_trz_type']);
                                     if ($check === null || $check === false) {
@@ -131,6 +131,8 @@ if (isset($_POST['reverse'])) {
                                                 $row = db_fetch($res);
                                                 if ($row && floatcmp($row['amount'], 0) == 0) {
                                                     $voided = true;
+                                                } else {
+                                                    error_log("DEBUG: Journal $trz[fa_trz_no] amount=" . ($row ? $row['amount'] : 'NOT FOUND'));
                                                 }
                                                 break;
                                             case ST_BANKPAYMENT:
@@ -141,6 +143,8 @@ if (isset($_POST['reverse'])) {
                                                 $row = db_fetch($res);
                                                 if ($row && floatcmp($row['amount'], 0) == 0) {
                                                     $voided = true;
+                                                } else {
+                                                    error_log("DEBUG: BankTrans $trz[fa_trz_no] amount=" . ($row ? $row['amount'] : 'NOT FOUND'));
                                                 }
                                                 break;
                                             default:
