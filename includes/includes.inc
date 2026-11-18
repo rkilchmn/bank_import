@@ -490,20 +490,19 @@ function transactionProcessed( $fa_trz_ref, $fa_trz_no, $fa_trz_type, $valueTime
 	$is_voided = false;
 	// trans no can change due to voiding and reprocessing, reference remains stable
 	if (isset($fa_trz_ref) && ($fa_trz_ref)) {
+		// Check if voided first - voided transactions should not be processed
+		$is_voided = get_voided_entry($fa_trz_type, $fa_trz_no);
+		if ($is_voided) {
+			return ''; // not processed (voided)
+		}
 		// determine transaction no
 		$txn = retrieve_txn_by_reference($fa_trz_type, $fa_trz_ref, sql2date($valueTimestamp));
 		if (isset($txn) && ($fa_trz_ref == $txn['reference'])) {
 			return $txn['trans_no']; // processed, return trans no
 		}
 		else {
-			// not found anymore -> voided
-			$is_voided = get_voided_entry($fa_trz_type, $fa_trz_no);
-			if ($is_voided) {
-				return ''; // not processed
-			}
-			else {
-				return ''; // ?????
-			}
+			// not found anymore -> voided or deleted
+			return ''; // not processed
 		}
 	}
 }
