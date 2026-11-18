@@ -39,9 +39,9 @@ jQuery(document).ready(function() {
     jQuery('form').on('submit', function(e) {
         var btn = jQuery(this).find('button[type=submit][name*=\"reverse\"]');
         if (btn.length === 0) return;
-        var memo = jQuery('input[name=\"reverseMemo\"]').val();
-        if (memo === '' || memo === null || memo === undefined) {
-            alert('Please enter a reverse memo before proceeding.');
+        var memo = prompt('Enter reverse memo:', 'Bank statement reversal');
+        if (memo === null || memo === '') {
+            alert('Reverse memo is required.');
             e.preventDefault();
             return false;
         }
@@ -49,6 +49,7 @@ jQuery(document).ready(function() {
             e.preventDefault();
             return false;
         }
+        jQuery('input[name=\"reverseMemo\"]').val(memo);
     });
 });
 ";
