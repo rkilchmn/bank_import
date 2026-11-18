@@ -112,7 +112,13 @@ if (isset($_POST['reverse'])) {
                 foreach ($processedTransactions as $tran_code => $trz_rows) {
                     foreach ($trz_rows as $trz) {
                         if (!empty($trz['fa_trz_no']) && !empty($trz['fa_trz_type'])) {
-                            $txnDate = !empty($trz['valueTimestamp']) ? sql2date($trz['valueTimestamp']) : Today();
+                            $txnDate = Today();
+                            if (!empty($trz['valueTimestamp'])) {
+                                $parsedDate = sql2date($trz['valueTimestamp']);
+                                if (!empty($parsedDate)) {
+                                    $txnDate = $parsedDate;
+                                }
+                            }
                             try {
                                 $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $txnDate, $reverseMemo);
                                 if ($err !== false) {
