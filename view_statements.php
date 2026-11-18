@@ -123,12 +123,42 @@ if (isset($_POST['reverse'])) {
                                 $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $txnDate, $reverseMemo);
                                 if ($err !== false) {
                                     $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
-                                } else {
+} else {
                                     // Verify voiding actually happened by checking if transaction still exists
-                                    $check = get_voided_entry($trz['fa_trz_type'], $trz['fa_trz_no']);
+                                    $check = get_voided_entry($trz['fa_trz_no'], $trz['fa_trz_type']);
                                     if ($check === null || $check === false) {
                                         $voidErrors[] = sprintf(_("Transaction #%s (type %s): void_transaction returned success but transaction was not voided"), $trz['fa_trz_no'], $trz['fa_trz_type']);
+                                    } else {
+                                        // Additional verification: check if the actual transaction was voided
+                                        $voided = false;
+                                        switch ($trz['fa_trz_type']) {
+                                            case ST_JOURNAL:
+                                                $sql = "SELECT amount FROM " . TB_PREF . "journal WHERE type=" . db_escape($trz['fa_trz_type']) . " AND trans_no=" . db_escape($trz['fa_trz_no']);
+                                                $res = db_query($sql, "could not check journal");
+                                                $row = db_fetch($res);
+                                                if ($row && floatcmp($row['amount'], 0) == 0) {
+                                                    $voided = true;
+                                                }
+                                                break;
+                                            case ST_BANKPAYMENT:
+                                            case ST_BANKDEPOSIT:
+                                            case ST_BANKTRANSFER:
+                                                $sql = "SELECT amount FROM " . TB_PREF . "bank_trans WHERE type=" . db_escape($trz['fa_trz_type']) . " AND trans_no=" . db_escape($trz['fa_trz_no']);
+                                                $res = db_query($sql, "could not check bank_trans");
+                                                $row = db_fetch($res);
+                                                if ($row && floatcmp($row['amount'], 0) == 0) {
+                                                    $voided = true;
+                                                }
+                                                break;
+                                            default:
+                                                // For other types, assume voided if we got here
+                                                $voided = true;
+                                        }
+                                        if (!$voided) {
+                                            $voidErrors[] = sprintf(_("Transaction #%s (type %s): void_transaction returned success but transaction was not voided"), $trz['fa_trz_no'], $trz['fa_trz_type']);
+                                        }
                                     }
+                                }
                                 }
                             } catch (Exception $e) {
                                 $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $e->getMessage());
