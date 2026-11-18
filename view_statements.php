@@ -37,8 +37,8 @@ $js = "";
 $js .= "
 jQuery(document).ready(function() {
     jQuery('form').on('submit', function(e) {
-        var $btn = jQuery(this).find('button[type=submit][name*=\"reverse\"]');
-        if ($btn.length === 0) return;
+        var btn = jQuery(this).find('button[type=submit][name*=\"reverse\"]');
+        if (btn.length === 0) return;
         var memo = jQuery('input[name=\"reverseMemo\"]').val();
         if (memo === '' || memo === null || memo === undefined) {
             alert('Please enter a reverse memo before proceeding.');
@@ -120,6 +120,7 @@ if (isset($_POST['reverse'])) {
                     }
                 }
                 if (count($voidErrors) > 0) {
+                    display_notification(sprintf(_("%d processed transactions have been voided. %d failed."), $numProcessed - count($voidErrors), count($voidErrors)), false);
                     foreach ($voidErrors as $err) {
                         display_error($err);
                     }
