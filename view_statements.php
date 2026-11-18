@@ -36,7 +36,7 @@ $js = "";
 
 $js .= "
 jQuery(document).ready(function() {
-    jQuery('input[type=submit][name*=\"reverse\"]').on('click', function(e) {
+    jQuery('button[type=submit][name*=\"reverse\"]').on('click', function(e) {
         var memo = jQuery('input[name=\"reverseMemo\"]').val();
         if (memo === '' || memo === null || memo === undefined) {
             alert('Please enter a reverse memo before proceeding.');
