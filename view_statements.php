@@ -39,17 +39,10 @@ jQuery(document).ready(function() {
     jQuery('form').on('submit', function(e) {
         var btn = jQuery(this).find('button[type=submit][name*=\"reverse\"]');
         if (btn.length === 0) return;
-        var memo = prompt('Enter reverse memo:', 'Bank statement reversal');
-        if (memo === null || memo === '') {
-            alert('Reverse memo is required.');
+        if (!confirm('Are you sure you want to void/reverse all processed transactions for this bank statement?')) {
             e.preventDefault();
             return false;
         }
-        if (!confirm('Are you sure you want to void/reverse all processed transactions for this bank statement?\n\nMemo: ' + memo)) {
-            e.preventDefault();
-            return false;
-        }
-        jQuery('input[name=\"reverseMemo\"]').val(memo);
     });
 });
 ";
@@ -94,9 +87,9 @@ if (isset($_POST['delete'])) {
 }
 
 if (isset($_POST['reverse'])) {
-    $reverseMemo = isset($_POST['reverseMemo']) ? trim($_POST['reverseMemo']) : _('Bank statement reversal');
+    $reverseMemo = isset($_POST['reverseMemo']) ? trim($_POST['reverseMemo']) : _('Bank Statements Inquiry Reverse') . ' ' . Today() . ' ' . $_SESSION['wa_current_user']->loginname;
     if (empty($reverseMemo))
-        $reverseMemo = _('Bank statement reversal');
+        $reverseMemo = _('Bank Statements Inquiry Reverse') . ' ' . Today() . ' ' . $_SESSION['wa_current_user']->loginname;
     $voidErrors = [];
     foreach (array_keys($_POST['reverse']) as $k) {
         $smt_id = $k;
@@ -196,7 +189,7 @@ if (!isset($_POST['accountFilter']))
     $_POST['accountFilter'] = 0;
 
 if (!isset($_POST['reverseMemo']))
-    $_POST['reverseMemo'] = _('Bank statement reversal');
+    $_POST['reverseMemo'] = _('Bank Statements Inquiry Reverse') . ' ' . Today() . ' ' . $_SESSION['wa_current_user']->loginname;
 
 label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = _("All Accounts")));
 date_cells(_("From:"), 'TransAfterDate', '', null, -30);
