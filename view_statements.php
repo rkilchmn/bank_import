@@ -24,6 +24,7 @@ include_once($path_to_root . "/gl/includes/db/gl_db_bank_trans.inc");
 include_once($path_to_root . "/sales/includes/db/custalloc_db.inc");
 
 include_once($path_to_root . "/modules/bank_import/includes/includes.inc");
+include_once($path_to_root . "/admin/db/voiding_db.inc");
 
 
 $js = "";
@@ -36,7 +37,13 @@ $js = "";
 $js .= "
 jQuery(document).ready(function() {
     jQuery('input[type=submit][name*=\"reverse\"]').on('click', function(e) {
-        if (!confirm('Are you sure you want to void/reverse all processed transactions for this bank statement?')) {
+        var memo = jQuery('input[name=\"reverseMemo\"]').val();
+        if (memo === '' || memo === null || memo === undefined) {
+            alert('Please enter a reverse memo before proceeding.');
+            e.preventDefault();
+            return;
+        }
+        if (!confirm('Are you sure you want to void/reverse all processed transactions for this bank statement?\n\nMemo: ' + memo)) {
             e.preventDefault();
         }
     });
@@ -83,6 +90,10 @@ if (isset($_POST['delete'])) {
 }
 
 if (isset($_POST['reverse'])) {
+    $reverseMemo = isset($_POST['reverseMemo']) ? trim($_POST['reverseMemo']) : _('Bank statement reversal');
+    if (empty($reverseMemo))
+        $reverseMemo = _('Bank statement reversal');
+    $voidErrors = [];
     foreach (array_keys($_POST['reverse']) as $k) {
         $smt_id = $k;
 		$v = $_POST['reverse'][$smt_id];
@@ -93,17 +104,24 @@ if (isset($_POST['reverse'])) {
             $numProcessed = count($processedTransactions);
 
             if ($numProcessed > 0) {
-                // void each processed transaction
+                // void each processed transaction using FA's void_transaction for proper memo recording
                 foreach ($processedTransactions as $tran_code => $trz_rows) {
                     foreach ($trz_rows as $trz) {
                         if (!empty($trz['fa_trz_no']) && !empty($trz['fa_trz_type'])) {
-                            void_bank_trans($trz['fa_trz_type'], $trz['fa_trz_no'], true);
-                            void_gl_trans($trz['fa_trz_type'], $trz['fa_trz_no'], true);
-                            void_cust_allocations($trz['fa_trz_type'], $trz['fa_trz_no'], $trz['valueTimestamp']);
+                            $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $trz['valueTimestamp'], $reverseMemo);
+                            if ($err !== false) {
+                                $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
+                            }
                         }
                     }
                 }
-                display_notification(sprintf(_("%d processed transactions have been voided."), $numProcessed), false);
+                if (count($voidErrors) > 0) {
+                    foreach ($voidErrors as $err) {
+                        display_error($err);
+                    }
+                } else {
+                    display_notification(sprintf(_("%d processed transactions have been voided."), $numProcessed), false);
+                }
             }
             // refresh page
             $Ajax->activate('doc_tbl');
@@ -126,11 +144,16 @@ if (!isset($_POST['TransToDate']))
 if (!isset($_POST['accountFilter'])) 
     $_POST['accountFilter'] = 0;
 
+if (!isset($_POST['reverseMemo']))
+    $_POST['reverseMemo'] = _('Bank statement reversal');
+
 label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = _("All Accounts")));
 date_cells(_("From:"), 'TransAfterDate', '', null, -30);
 date_cells(_("To:"), 'TransToDate', '', null, 1);
-
 submit_cells('RefreshInquiry', _("Search"),'',_('Refresh Inquiry'), 'default');
+end_row();
+start_row();
+text_cells(_("Reverse Memo:"), 'reverseMemo', 40, '', '', 40, false, false, '', 'reverseMemo');
 end_row();
 end_table();
 
