@@ -159,7 +159,6 @@ if (isset($_POST['reverse'])) {
                                         }
                                     }
                                 }
-                                }
                             } catch (Exception $e) {
                                 $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $e->getMessage());
                             }
