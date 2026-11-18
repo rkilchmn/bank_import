@@ -112,13 +112,16 @@ if ($numProcessed > 0) {
                                     $txnDate = $parsedDate;
                                 }
                             }
+                            error_log("DEBUG: Voiding transaction type={$trz['fa_trz_type']} no={$trz['fa_trz_no']} date={$txnDate}");
                             try {
                                 $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $txnDate, $reverseMemo);
+                                error_log("DEBUG: void_transaction returned: " . ($err === false ? 'false (success)' : $err));
                                 if ($err !== false) {
                                     $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
                                 } else {
                                     // Verify voiding actually happened by checking if transaction still exists
                                     $check = get_voided_entry($trz['fa_trz_no'], $trz['fa_trz_type']);
+                                    error_log("DEBUG: get_voided_entry returned: " . ($check ? 'found' : 'not found'));
                                     if ($check === null || $check === false) {
                                         $voidErrors[] = sprintf(_("Transaction #%s (type %s): void_transaction returned success but transaction was not voided"), $trz['fa_trz_no'], $trz['fa_trz_type']);
                                     } else {
@@ -129,10 +132,9 @@ if ($numProcessed > 0) {
                                                 $sql = "SELECT amount FROM " . TB_PREF . "journal WHERE type=" . db_escape($trz['fa_trz_type']) . " AND trans_no=" . db_escape($trz['fa_trz_no']);
                                                 $res = db_query($sql, "could not check journal");
                                                 $row = db_fetch($res);
+                                                error_log("DEBUG: Journal check amount=" . ($row ? $row['amount'] : 'NOT FOUND'));
                                                 if ($row && floatcmp($row['amount'], 0) == 0) {
                                                     $voided = true;
-                                                } else {
-                                                    error_log("DEBUG: Journal $trz[fa_trz_no] amount=" . ($row ? $row['amount'] : 'NOT FOUND'));
                                                 }
                                                 break;
                                             case ST_BANKPAYMENT:
@@ -141,10 +143,9 @@ if ($numProcessed > 0) {
                                                 $sql = "SELECT amount FROM " . TB_PREF . "bank_trans WHERE type=" . db_escape($trz['fa_trz_type']) . " AND trans_no=" . db_escape($trz['fa_trz_no']);
                                                 $res = db_query($sql, "could not check bank_trans");
                                                 $row = db_fetch($res);
+                                                error_log("DEBUG: BankTrans check amount=" . ($row ? $row['amount'] : 'NOT FOUND'));
                                                 if ($row && floatcmp($row['amount'], 0) == 0) {
                                                     $voided = true;
-                                                } else {
-                                                    error_log("DEBUG: BankTrans $trz[fa_trz_no] amount=" . ($row ? $row['amount'] : 'NOT FOUND'));
                                                 }
                                                 break;
                                             default:
@@ -157,6 +158,7 @@ if ($numProcessed > 0) {
                                     }
                                 }
                             } catch (Exception $e) {
+                                error_log("DEBUG: Exception: " . $e->getMessage());
                                 $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $e->getMessage());
                             }
                         }
