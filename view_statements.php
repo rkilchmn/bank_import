@@ -108,7 +108,8 @@ if (isset($_POST['reverse'])) {
                 foreach ($processedTransactions as $tran_code => $trz_rows) {
                     foreach ($trz_rows as $trz) {
                         if (!empty($trz['fa_trz_no']) && !empty($trz['fa_trz_type'])) {
-                            $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $trz['valueTimestamp'], $reverseMemo);
+                            $txnDate = !empty($trz['valueTimestamp']) ? $trz['valueTimestamp'] : Today();
+                            $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $txnDate, $reverseMemo);
                             if ($err !== false) {
                                 $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
                             }
@@ -153,7 +154,7 @@ date_cells(_("To:"), 'TransToDate', '', null, 1);
 submit_cells('RefreshInquiry', _("Search"),'',_('Refresh Inquiry'), 'default');
 end_row();
 start_row();
-text_cells(_("Reverse Memo:"), 'reverseMemo', 40, '', '', 40, false, false, '', 'reverseMemo');
+text_cells(_("Reverse Memo:"), 'reverseMemo', $_POST['reverseMemo'], 40, 40, false, '', '', '');
 end_row();
 end_table();
 
