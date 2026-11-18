@@ -36,15 +36,18 @@ $js = "";
 
 $js .= "
 jQuery(document).ready(function() {
-    jQuery('button[type=submit][name*=\"reverse\"]').on('click', function(e) {
+    jQuery('form').on('submit', function(e) {
+        var $btn = jQuery(this).find('button[type=submit][name*=\"reverse\"]');
+        if ($btn.length === 0) return;
         var memo = jQuery('input[name=\"reverseMemo\"]').val();
         if (memo === '' || memo === null || memo === undefined) {
             alert('Please enter a reverse memo before proceeding.');
             e.preventDefault();
-            return;
+            return false;
         }
         if (!confirm('Are you sure you want to void/reverse all processed transactions for this bank statement?\n\nMemo: ' + memo)) {
             e.preventDefault();
+            return false;
         }
     });
 });
@@ -108,7 +111,7 @@ if (isset($_POST['reverse'])) {
                 foreach ($processedTransactions as $tran_code => $trz_rows) {
                     foreach ($trz_rows as $trz) {
                         if (!empty($trz['fa_trz_no']) && !empty($trz['fa_trz_type'])) {
-                            $txnDate = !empty($trz['valueTimestamp']) ? $trz['valueTimestamp'] : Today();
+                            $txnDate = !empty($trz['valueTimestamp']) ? sql2date($trz['valueTimestamp']) : Today();
                             $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $txnDate, $reverseMemo);
                             if ($err !== false) {
                                 $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
