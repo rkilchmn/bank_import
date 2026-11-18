@@ -112,9 +112,13 @@ if (isset($_POST['reverse'])) {
                     foreach ($trz_rows as $trz) {
                         if (!empty($trz['fa_trz_no']) && !empty($trz['fa_trz_type'])) {
                             $txnDate = !empty($trz['valueTimestamp']) ? sql2date($trz['valueTimestamp']) : Today();
-                            $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $txnDate, $reverseMemo);
-                            if ($err !== false) {
-                                $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
+                            try {
+                                $err = void_transaction($trz['fa_trz_type'], $trz['fa_trz_no'], $txnDate, $reverseMemo);
+                                if ($err !== false) {
+                                    $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
+                                }
+                            } catch (Exception $e) {
+                                $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $e->getMessage());
                             }
                         }
                     }
