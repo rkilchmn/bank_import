@@ -121,7 +121,7 @@ if (isset($_POST['reverse'])) {
                                     $voidErrors[] = sprintf(_("Transaction #%s (type %s): %s"), $trz['fa_trz_no'], $trz['fa_trz_type'], $err);
                                 } else {
                                     // Verify voiding actually happened by checking if transaction still exists
-                                    $check = get_voided_entry($trz['fa_trz_no'], $trz['fa_trz_type']);
+                                    $check = get_voided_entry($trz['fa_trz_type'], $trz['fa_trz_no']);
                                     $debugInfo[] = "get_voided_entry: " . ($check ? 'found' : 'not found');
                                     if ($check === null || $check === false) {
                                         $voidErrors[] = sprintf(_("Transaction #%s (type %s): void_transaction returned success but transaction was not voided"), $trz['fa_trz_no'], $trz['fa_trz_type']);
@@ -169,6 +169,10 @@ if (isset($_POST['reverse'])) {
                     echo "<div style='background:#f0f0f0;padding:10px;margin:10px 0;font-family:monospace;font-size:11px;'>";
                     echo "<strong>DEBUG INFO:</strong><br>";
                     echo implode("<br>", $debugInfo);
+                    if (isset($GLOBALS['voidDebugInfo']) && !empty($GLOBALS['voidDebugInfo'])) {
+                        echo "<br><strong>VOID DEBUG:</strong><br>";
+                        echo implode("<br>", $GLOBALS['voidDebugInfo']);
+                    }
                     echo "</div>";
                 }
                 if (count($voidErrors) > 0) {
