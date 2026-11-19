@@ -100,12 +100,12 @@ if (isset($_POST['reverse'])) {
                 '', $smt_id , '', '', STATUS_PROCESSED);
             $numProcessed = count($processedTransactions);
 
-if ($numProcessed > 0) {
+            if ($numProcessed > 0) {
                 // void each processed transaction using FA's void_transaction for proper memo recording
                 $debugInfo = [];
                 foreach ($processedTransactions as $tran_code => $trz_rows) {
                     foreach ($trz_rows as $trz) {
-                        if (!empty($trz['fa_trz_no']) && !empty($trz['fa_trz_type'])) {
+                        if (isset($trz['fa_trz_no']) && $trz['fa_trz_no'] !== '' && isset($trz['fa_trz_type']) && $trz['fa_trz_type'] !== '') {
                             $txnDate = Today();
                             if (!empty($trz['valueTimestamp'])) {
                                 $parsedDate = sql2date($trz['valueTimestamp']);
