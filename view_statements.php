@@ -34,19 +34,6 @@ $js = "";
 // if ($use_date_picker)
 // 		$js .= get_js_date_picker();
 
-$js .= "
-jQuery(document).ready(function() {
-    jQuery('button[type=submit][name*=\"reverse\"]').on('click', function(e) {
-        if (!confirm('Are you sure you want to void/reverse all processed transactions for this bank statement?')) {
-            e.preventDefault();
-            return false;
-        }
-        // Show loading row
-        jQuery('#loading_row').show();
-    });
-});
-";
-
 if ($SysPrefs->use_popup_windows)
 	$js .= get_js_open_window(800, 500);
 if (user_use_date_picker())
@@ -220,10 +207,6 @@ $res=db_query($sql, 'unable to get transactions data');
 div_start('doc_tbl');
 start_table(TABLESTYLE, "width='100%'");
 table_header(array("Bank", "Statement#", "Date", "Account(Currency)", "Start Balance", "End Balance", "Delta", "Transactions", "Processed", "Allow Delete"));
-
-// Add loading indicator row (hidden by default, shown via JS when processing)
-echo "<tr id='loading_row' style='display:none;'><td colspan='10' style='text-align:center;padding:20px;'><img src='".'../../themes/canvas/images/progressbar.gif'."' alt='Processing...' style='width:200px;height:20px;'><p style='margin-top:5px;font-weight:bold;'>Processing reversals, please wait...</p></td></tr>";
-
 while($myrow = db_fetch($res)) {
     // get processed transactions
     list( $processedTransactions, $statements) = getStatementTransactions(
