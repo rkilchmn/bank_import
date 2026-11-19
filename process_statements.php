@@ -595,6 +595,22 @@ if (1) {
 
 	table_header(array("Transaction Details", "Processing/Status"));
 
+	// Show count of transactions displayed and selected
+	$displayedCount = count($trzs);
+	$selectedCount = 0;
+	if (isset($_POST['ProcessTransaction']) && is_array($_POST['ProcessTransaction'])) {
+		foreach ($_POST['ProcessTransaction'] as $tid => $selected) {
+			if ($selected) {
+				$selectedCount++;
+			}
+		}
+	}
+	$countDisplay = "Transactions displayed: $displayedCount";
+	if ($selectedCount > 0) {
+		$countDisplay .= " | Selected: $selectedCount";
+	}
+	echo "<tr><td colspan='2'><b>$countDisplay</b></td></tr>";
+
 	foreach ($trzs as $trz_code => $trz_data) {
 		//try to match something, interpreting saved info if status=TR_SETTLED
 		//$minfo = doMatching($myrow, $coyBankAccounts, $custBankAccounts, $suppBankAccounts);
