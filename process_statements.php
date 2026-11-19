@@ -593,9 +593,7 @@ if (1) {
 
 	start_table(TABLESTYLE, "width='100%'");
 
-	table_header(array("Transaction Details", "Processing/Status"));
-
-	// Show count of transactions displayed and selected
+	// Show count of transactions displayed and selected in header
 	$displayedCount = count($trzs);
 	$selectedCount = 0;
 	if (isset($_POST['ProcessTransaction']) && is_array($_POST['ProcessTransaction'])) {
@@ -605,11 +603,13 @@ if (1) {
 			}
 		}
 	}
-	$countDisplay = "Transactions displayed: $displayedCount";
+	$countDisplay = "Transaction Details ($displayedCount displayed";
 	if ($selectedCount > 0) {
-		$countDisplay .= " | Selected: $selectedCount";
+		$countDisplay .= ", $selectedCount selected";
 	}
-	echo "<tr><td colspan='2'><b>$countDisplay</b></td></tr>";
+	$countDisplay .= ")";
+
+	table_header(array($countDisplay, "Processing/Status"));
 
 	foreach ($trzs as $trz_code => $trz_data) {
 		//try to match something, interpreting saved info if status=TR_SETTLED
