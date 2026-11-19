@@ -205,16 +205,10 @@ if (!isset($_POST['TransToDate']))
 if (!isset($_POST['accountFilter'])) 
     $_POST['accountFilter'] = 0;
 
-if (!isset($_POST['reverseMemo']))
-    $_POST['reverseMemo'] = _('Bank Statements Inquiry Reverse') . ' ' . Today() . ' ' . $_SESSION['wa_current_user']->loginname;
-
 label_cells(_("Bank Account:"), bank_accounts_list($name = "accountFilter", $selected_id = $_POST['accountFilter'], $submit_on_change = false, $spec_option = _("All Accounts")));
 date_cells(_("From:"), 'TransAfterDate', '', null, -30);
 date_cells(_("To:"), 'TransToDate', '', null, 1);
 submit_cells('RefreshInquiry', _("Search"),'',_('Refresh Inquiry'), 'default');
-end_row();
-start_row();
-text_cells(_("Reverse Memo:"), 'reverseMemo', $_POST['reverseMemo'], 40, 40, false, '', '', '');
 end_row();
 end_table();
 
